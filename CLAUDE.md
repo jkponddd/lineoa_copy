@@ -40,7 +40,7 @@ Architecture target: multi-tenant (one deployment can serve multiple client orga
 
 1. **After finishing any code change or feature:**
    - Give me a short, conventional commit message (e.g. `feat: add inbox realtime message list`). **Do not run `git commit` yourself** — I commit manually.
-   - Then ask **"What's next?"** and **stop**. Wait for my reply before starting the next task. Never auto-continue to the next feature on your own.
+   - Suggest a short list (2-4 items) of recommended next steps, then ask whether to go ahead with one ("ทำต่อเลยมั้ย?" / continue now?) and **stop**. Wait for my reply before starting the next task. Never auto-continue to the next feature on your own.
 
 2. **After every completed task**, create or update a markdown status file (see below) summarizing what was built, key decisions made, and what's left open. Treat it as a running project log, not a one-time doc.
 

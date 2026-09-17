@@ -4,16 +4,18 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { SidebarNav } from "./sidebar-nav";
 import { BottomNav } from "./bottom-nav";
+import { UserMenu } from "./user-menu";
 import type { NavItem, PrimaryAction } from "./types";
 
 type AppShellProps = {
   sectionTitle: string;
   navItems: NavItem[];
   primaryAction: PrimaryAction;
+  user: { name: string; email: string; orgName: string };
   children: ReactNode;
 };
 
-export function AppShell({ sectionTitle, navItems, primaryAction, children }: AppShellProps) {
+export function AppShell({ sectionTitle, navItems, primaryAction, user, children }: AppShellProps) {
   return (
     <div className="flex min-h-svh">
       <SidebarNav sectionTitle={sectionTitle} navItems={navItems} primaryAction={primaryAction} />
@@ -25,6 +27,7 @@ export function AppShell({ sectionTitle, navItems, primaryAction, children }: Ap
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
             <ThemeToggle />
+            <UserMenu name={user.name} email={user.email} orgName={user.orgName} />
           </div>
         </header>
 

@@ -90,6 +90,53 @@ Running log of work on the LINE OA Management Platform. Append a new dated entry
 
 **Open items / not built yet**
 
-- Auth UI/flows that actually create organizations and invite members (this step only built the schema + triggers that make that safe, not the screens or server actions).
 - LINE channel credentials table (channel ID/secret/access token, encrypted) — later step, once LINE integration starts.
 - Regenerate `src/lib/supabase/database.types.ts` from the live project (`supabase gen types typescript --project-id <ref>`) to replace the hand-written version — not done yet since CLI isn't linked (project uses SQL Editor workflow instead).
+
+---
+
+## 2026-09-17 — Phase 1, Step 3: Auth (email/password, route protection, first-org onboarding)
+
+**What was built** (scope confirmed with user beforehand: email+password, route protection, org onboarding — see [0002](docs/decisions/0002-auth-approach.md) for the full reasoning)
+
+- `src/lib/supabase/middleware.ts` — `updateSession()`, refreshes the Supabase session cookie on every request per Supabase's documented SSR pattern.
+- `src/proxy.ts` rewritten to combine next-intl's locale routing with session refresh and a lightweight auth guard (session-only check, no DB query) that redirects unauthenticated requests to `/app` or `/admin` to `/login?next=<path>`.
+- `src/lib/supabase/get-current-membership.ts` — server-only helper resolving the current user's profile + first organization membership + role (two flat queries, not an embedded `.select()`, since the hand-written `Database` type doesn't model relationships — see bug note below).
+- Auth Server Actions (`src/app/[locale]/(auth)/actions.ts`): `login`, `signup`, `signOut`, all using `next-intl`'s locale-aware `redirect()`.
+- `/login` and `/signup` pages + `LoginForm`/`SignupForm` client components (`useActionState`), under a minimal `(auth)` layout (no app shell).
+- `/onboarding` — server-checked (redirects unauthenticated → `/login`, already-has-an-org → `/app`) page with `CreateOrganizationForm`, reusing the `handle_new_organization` trigger from migration 1 to auto-add the creator as owner.
+- `(app)/layout.tsx` and `(admin)/layout.tsx` now do real server-side checks: no membership → `/onboarding`; **Admin Panel is owner-only** — non-owners hitting `/admin` are redirected to `/app`.
+- `AppShell` now takes a `user` prop and renders a real `UserMenu` (avatar, name/email, org name, sign-out) instead of the earlier placeholder header.
+- Marketing homepage's CTA now links to `/signup`.
+- New shadcn components: `input`, `label`, `card`. New dependency: `server-only`.
+- `docs/decisions/0002-auth-approach.md`.
+
+**Bugs found and fixed while building/testing this (not by inspection — by actually exercising the flow against the live Supabase project)**
+
+1. **Double locale-prefixed redirect** (`/th/th/app` → 404): `proxy.ts` was storing the post-login `next` target with the locale prefix still attached (`/th/app`), then handing it to next-intl's `redirect()`, which prepends the locale itself. Fixed by stripping the locale before storing `next`.
+2. **`DropdownMenuLabel` crash in `UserMenu`**: "Base UI: MenuGroupContext is missing." Base UI's `Menu.GroupLabel` (unlike Radix's) must be nested inside `Menu.Group`. Fixed by wrapping it in `DropdownMenuGroup`.
+3. **Missing `nativeButton={false}`** on two more `Button` + `render={<Link/>}` composites (the marketing CTA, after wiring it to `/signup`) — same class of issue as the sidebar fix from the scaffold step; same fix.
+4. **Hand-written `Database` type was silently making every Supabase query resolve to `never`**: `@supabase/postgrest-js` requires `Relationships` on every table and `Views`/`Functions` on the schema to type `.select()` correctly — the hand-written type from Step 2 was missing all three, which doesn't error at the type definition site, it just makes query results untyped. Fixed by adding the required (empty) fields.
+5. **TypeScript didn't narrow types after `redirect()` guard clauses**, despite `redirect()` being typed `() => never` — confirmed via isolated repro that this specific case (a `never`-returning function returned from `createNavigation()`, a generic factory) doesn't narrow the way a plain `function f(): never` does. Worked around with explicit `return null;` after every such guard clause — see the ADR for detail.
+
+**Verified — actually exercised against the live Supabase project, not just built and assumed working**
+
+Used the service-role key to create real (pre-confirmed) test users via the admin API, then drove the full flow with a headless browser:
+- Unauthenticated visit to `/app` → redirected to `/login?next=%2Fapp`.
+- Log in → lands on `/onboarding` (no org yet) → create org → lands on `/app`, org + owner membership rows confirmed in the database.
+- Visit `/admin` as the owner → allowed.
+- A second user added as `agent` (not owner) to the same org → visits `/admin` → bounced to `/app`.
+- Sign out → back to `/login`; `/app` afterward → redirected to `/login` again (session actually cleared, not just UI state).
+- Public signup form (via the marketing page's CTA) → shows the "confirm your email" message, confirming the project has email confirmation enabled and the app handles that state correctly rather than assuming an immediate session.
+- Zero console/page errors in the final passing run.
+- All test users, organizations, and memberships created during testing were deleted afterward via the service role key — confirmed the database is back to empty (`organizations: 0`, `organization_members: 0`, `auth users: 0`).
+- `next build`, `tsc --noEmit`, `eslint` all clean.
+
+**Open items / not built yet**
+
+- Org-switcher UI for users belonging to multiple organizations (schema supports it; `getCurrentMembership()` just picks the first row for now).
+- Password reset / forgot-password flow.
+- Inviting other members to an organization (schema + RLS support it — `organization_members` insert is owner-gated — but there's no UI/action for it yet).
+- Per-feature permission checks within `/app` for agent vs. analyst (today's role split is only the coarse owner-vs-everyone-else gate on `/admin`).
+- LINE channel credentials table — later step.
+- Regenerate `database.types.ts` from the live project once the CLI is linked (still using the SQL-Editor workflow, so this hasn't happened).

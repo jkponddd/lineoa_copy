@@ -6,7 +6,33 @@
     "themeLight": "Light",
     "themeDark": "Dark",
     "themeSystem": "System",
-    "placeholder": "Placeholder page — content will be built in a later step."
+    "placeholder": "Placeholder page — content will be built in a later step.",
+    "signOut": "Sign out",
+    "accountMenu": "Account menu"
+  },
+  "auth": {
+    "loginTitle": "Log in",
+    "loginDescription": "Log in to manage your LINE OA.",
+    "signupTitle": "Create an account",
+    "signupDescription": "Get started for free.",
+    "email": "Email",
+    "password": "Password",
+    "fullName": "Full name",
+    "loginButton": "Log in",
+    "signupButton": "Sign up",
+    "noAccount": "Don't have an account?",
+    "haveAccount": "Already have an account?",
+    "signupLink": "Sign up",
+    "loginLink": "Log in",
+    "confirmEmail": "We've sent a confirmation link to your email. Please confirm before logging in."
+  },
+  "onboarding": {
+    "title": "Create your organization",
+    "description": "Name your organization to get started. You'll be its owner.",
+    "orgNameLabel": "Organization name",
+    "orgNamePlaceholder": "e.g. My Company",
+    "createButton": "Create organization",
+    "nameRequired": "Organization name is required."
   },
   "marketing": {
     "title": "Manage your LINE Official Account like a pro",

@@ -6,7 +6,33 @@
     "themeLight": "สว่าง",
     "themeDark": "มืด",
     "themeSystem": "ตามระบบ",
-    "placeholder": "หน้าตัวอย่าง — จะเพิ่มเนื้อหาในขั้นตอนถัดไป"
+    "placeholder": "หน้าตัวอย่าง — จะเพิ่มเนื้อหาในขั้นตอนถัดไป",
+    "signOut": "ออกจากระบบ",
+    "accountMenu": "เมนูบัญชีผู้ใช้"
+  },
+  "auth": {
+    "loginTitle": "เข้าสู่ระบบ",
+    "loginDescription": "เข้าสู่ระบบเพื่อจัดการ LINE OA ของคุณ",
+    "signupTitle": "สร้างบัญชี",
+    "signupDescription": "เริ่มต้นใช้งานฟรี",
+    "email": "อีเมล",
+    "password": "รหัสผ่าน",
+    "fullName": "ชื่อ-นามสกุล",
+    "loginButton": "เข้าสู่ระบบ",
+    "signupButton": "สมัครสมาชิก",
+    "noAccount": "ยังไม่มีบัญชี?",
+    "haveAccount": "มีบัญชีอยู่แล้ว?",
+    "signupLink": "สมัครสมาชิก",
+    "loginLink": "เข้าสู่ระบบ",
+    "confirmEmail": "เราส่งลิงก์ยืนยันไปที่อีเมลของคุณแล้ว กรุณายืนยันก่อนเข้าสู่ระบบ"
+  },
+  "onboarding": {
+    "title": "สร้างองค์กรของคุณ",
+    "description": "ตั้งชื่อองค์กรเพื่อเริ่มต้นใช้งาน คุณจะเป็นเจ้าของ (owner) ขององค์กรนี้",
+    "orgNameLabel": "ชื่อองค์กร",
+    "orgNamePlaceholder": "เช่น บริษัทของฉัน",
+    "createButton": "สร้างองค์กร",
+    "nameRequired": "กรุณากรอกชื่อองค์กร"
   },
   "marketing": {
     "title": "จัดการ LINE Official Account ของคุณอย่างมืออาชีพ",
