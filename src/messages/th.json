@@ -1,0 +1,38 @@
+{
+  "common": {
+    "appName": "LINE OA Platform",
+    "language": "ภาษา",
+    "theme": "ธีม",
+    "themeLight": "สว่าง",
+    "themeDark": "มืด",
+    "themeSystem": "ตามระบบ",
+    "placeholder": "หน้าตัวอย่าง — จะเพิ่มเนื้อหาในขั้นตอนถัดไป"
+  },
+  "marketing": {
+    "title": "จัดการ LINE Official Account ของคุณอย่างมืออาชีพ",
+    "description": "แพลตฟอร์มสำหรับจัดการกล่องข้อความ ออกอากาศ และรายงานของ LINE OA แบบครบวงจร",
+    "cta": "เริ่มต้นใช้งาน"
+  },
+  "app": {
+    "sectionTitle": "แอปผู้ใช้",
+    "nav": {
+      "inbox": "กล่องข้อความ",
+      "broadcast": "ออกอากาศ",
+      "reports": "รายงาน",
+      "richMenu": "ริชเมนู"
+    },
+    "primaryAction": "ตอบกลับ"
+  },
+  "admin": {
+    "sectionTitle": "แผงควบคุมผู้ดูแลระบบ",
+    "nav": {
+      "organization": "องค์กร",
+      "users": "ผู้ใช้งาน",
+      "roles": "บทบาท",
+      "billing": "การเรียกเก็บเงิน",
+      "settings": "ตั้งค่าระบบ",
+      "auditLog": "บันทึกการตรวจสอบ"
+    },
+    "primaryAction": "เพิ่มผู้ใช้"
+  }
+}

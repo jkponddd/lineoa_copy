@@ -1,0 +1,38 @@
+{
+  "common": {
+    "appName": "LINE OA Platform",
+    "language": "Language",
+    "theme": "Theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "System",
+    "placeholder": "Placeholder page — content will be built in a later step."
+  },
+  "marketing": {
+    "title": "Manage your LINE Official Account like a pro",
+    "description": "One platform for inbox, broadcast, and reporting for your LINE OA.",
+    "cta": "Get started"
+  },
+  "app": {
+    "sectionTitle": "User App",
+    "nav": {
+      "inbox": "Inbox",
+      "broadcast": "Broadcast",
+      "reports": "Reports",
+      "richMenu": "Rich Menu"
+    },
+    "primaryAction": "Reply"
+  },
+  "admin": {
+    "sectionTitle": "Admin Panel",
+    "nav": {
+      "organization": "Organization",
+      "users": "Users",
+      "roles": "Roles",
+      "billing": "Billing",
+      "settings": "Settings",
+      "auditLog": "Audit Log"
+    },
+    "primaryAction": "Add User"
+  }
+}
