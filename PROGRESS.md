@@ -47,6 +47,49 @@ Running log of work on the LINE OA Management Platform. Append a new dated entry
 
 - LINE Messaging API integration (webhook, push/reply) — later step.
 - Auth logic (Supabase Auth, role-based access for owner/agent/analyst) — later step.
-- Database schema, RLS policies, multi-tenancy (`organization_id` scoping) — later step.
+- Database schema, RLS policies, multi-tenancy (`organization_id` scoping) — done, see 2026-09-17 Phase 1 Step 2 entry below.
 - No Supabase project is actually provisioned; `.env.local` is not created (only the `.example` template).
+- **Unresolved user report**: a "Hydration failed because the server rendered HTML didn't match the client" error was reported after the script-tag fix above. Could not reproduce across ~15 scenarios in headless Chromium (cold loads of every route, light/dark system preference, theme toggle, language switch, combined flows, root-path redirect, back/forward nav) — all clean, no errors. Most likely stale Fast Refresh state from the several file edits made during that session, or a browser extension; asked the user to hard-refresh / test in an incognito window and, if it recurs, share the full error with its component stack trace. No code change was made for this since it isn't reproducible — revisit if the user reports it again with more detail.
 - **Environment blocker**: `git` is non-functional in this shell — Xcode license not yet accepted (`sudo xcodebuild -license`). This blocked the `@next/codemod` middleware→proxy migration tool (renamed the file by hand instead) and blocks any `git status`/`git diff` checks on my end. The user will need to run `sudo xcodebuild -license` locally before their usual `git add`/`git commit` will work.
+
+---
+
+## 2026-09-17 — Phase 1, Step 2: Database schema + RLS
+
+**What was built**
+
+- Initialized `supabase/` (via `supabase init`): `supabase/config.toml`, `supabase/.gitignore`. No project is linked yet.
+- First migration, `supabase/migrations/20260917160000_core_schema.sql`:
+  - `organizations` — tenant root (`id`, `name`, `slug` unique, timestamps).
+  - `profiles` — 1:1 with `auth.users`, auto-created by an `AFTER INSERT` trigger on `auth.users` (`handle_new_user`) so a user can never exist without a profile.
+  - `organization_members` — join table carrying the per-organization `role` (`owner` / `agent` / `analyst` enum, `org_role`). Role lives on the membership, not the user, since the same person could hold different roles in different organizations. Creating an organization auto-inserts its creator as `owner` via an `AFTER INSERT` trigger on `organizations` (`handle_new_organization`) so an org can never exist without an owner.
+  - `audit_log` — org-scoped, append-only from the client (no update/delete policy), per the Admin Panel's audit log requirement.
+  - Two `SECURITY DEFINER` helper functions, `is_org_member(org_id)` / `is_org_owner(org_id)`, back nearly every RLS policy. A policy on `organization_members` that queried `organization_members` directly would recurse into its own check; routing through a `SECURITY DEFINER` function avoids that (its internal query bypasses RLS) — this is the standard Supabase pattern for the problem, not a novel workaround.
+  - RLS is enabled on all four tables with policies scoped to organization membership (see the migration file for the full policy list).
+- `docs/decisions/0001-multi-tenancy-and-rls.md` — ADR explaining the tenancy model, why role lives on membership not the user, the `SECURITY DEFINER` recursion-avoidance pattern, and the trigger-based bootstrapping, per CLAUDE.md's "big architecture calls" documentation rule.
+- Hand-written `src/lib/supabase/database.types.ts` matching this schema, wired into both `src/lib/supabase/client.ts` and `server.ts` via `createBrowserClient<Database>()` / `createServerClient<Database>()` for typed queries. Marked to be replaced by `supabase gen types typescript` output once a real project is linked.
+
+**Key decisions**
+
+- Multi-tenancy is enforced at the database layer via RLS keyed on `organization_members`, not left to application-level filtering — see the ADR for the full reasoning.
+- LINE channel credentials are deliberately **not** part of this schema — that's a separate table/decision when LINE integration is built, with encrypted token columns per CLAUDE.md.
+
+**Verified**
+
+- Migration SQL syntax-checked against the real Postgres grammar via `libpg-query` (parsed all 35 statements with no errors).
+- `next build`, `tsc --noEmit`, and `eslint` all clean with the new `Database` type wired into both Supabase client helpers.
+
+**Follow-up (same day): applied to a real Supabase project, found and fixed a real bug**
+
+- User created a real Supabase project and filled in `.env.local`. Decided to apply migrations by pasting the `.sql` file contents into the dashboard's **SQL Editor** rather than using the CLI (`supabase link` / `db push`) — noted as the ongoing workflow for future migrations too, since the CLI's browser-based login can't complete from this non-interactive shell anyway.
+- `20260917160000_core_schema.sql` applied successfully ("Success. No rows returned").
+- Wrote a throwaway verification script (`@supabase/supabase-js`, using the service role + anon keys from `.env.local`, never printed) to actually check the live database rather than trust the dashboard's success message alone. First run confirmed all 4 tables exist and are queryable.
+- **Bug found by that test, not by inspection**: inserting a row into `organizations` via the **service role key** failed with `null value in column "user_id" ... violates not-null constraint`. Root cause: `handle_new_organization()` always tried to add the inserting user as owner using `auth.uid()`, but `auth.uid()` is `NULL` for service-role-driven inserts (no session attached) — e.g. any future backend/admin script or seed script. The trigger's failed insert rolled back the whole `organizations` insert.
+- Fixed in `20260917170000_fix_org_owner_trigger_service_role.sql`: the trigger now only auto-adds the owner when `auth.uid()` is not null; service-role callers must insert the owner membership themselves. Applied via SQL Editor, re-verified: service-role insert now succeeds, and a second test (insert a row via service role, confirm the anon key gets zero rows back, then delete the test row) confirmed RLS actually blocks anonymous access — not just "the table has no data anyway."
+- Database is confirmed clean after testing (test rows inserted and deleted programmatically, nothing left behind).
+
+**Open items / not built yet**
+
+- Auth UI/flows that actually create organizations and invite members (this step only built the schema + triggers that make that safe, not the screens or server actions).
+- LINE channel credentials table (channel ID/secret/access token, encrypted) — later step, once LINE integration starts.
+- Regenerate `src/lib/supabase/database.types.ts` from the live project (`supabase gen types typescript --project-id <ref>`) to replace the hand-written version — not done yet since CLI isn't linked (project uses SQL Editor workflow instead).
