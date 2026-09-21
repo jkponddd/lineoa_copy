@@ -3,14 +3,13 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { useLocale, useTranslations } from "next-intl";
-import { useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "@/i18n/navigation";
-import { login, type AuthFormState } from "@/app/[locale]/(auth)/actions";
+import { requestPasswordReset, type AuthFormState } from "@/app/[locale]/(auth)/actions";
 
 const initialState: AuthFormState = { error: null, info: null };
 
@@ -23,49 +22,46 @@ function SubmitButton({ label }: { label: string }) {
   );
 }
 
-export function LoginForm() {
+export function ForgotPasswordForm() {
   const t = useTranslations("auth");
   const locale = useLocale();
-  const searchParams = useSearchParams();
-  const next = searchParams.get("next") ?? "/app";
-  const linkExpired = searchParams.get("error") === "linkExpired";
-  const [state, formAction] = useActionState(login, initialState);
+  const [state, formAction] = useActionState(requestPasswordReset, initialState);
+
+  if (state.info === "resetEmailSent") {
+    return (
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle>{t("forgotPasswordTitle")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">{t("resetEmailSent")}</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-        <CardTitle>{t("loginTitle")}</CardTitle>
-        <CardDescription>{t("loginDescription")}</CardDescription>
+        <CardTitle>{t("forgotPasswordTitle")}</CardTitle>
+        <CardDescription>{t("forgotPasswordDescription")}</CardDescription>
       </CardHeader>
       <CardContent>
         <form action={formAction} className="flex flex-col gap-4">
           <input type="hidden" name="locale" value={locale} />
-          <input type="hidden" name="next" value={next} />
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="email">{t("email")}</Label>
             <Input id="email" name="email" type="email" autoComplete="email" required />
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">{t("password")}</Label>
-              <Link href="/forgot-password" className="text-xs text-muted-foreground underline underline-offset-4">
-                {t("forgotPasswordLink")}
-              </Link>
-            </div>
-            <Input id="password" name="password" type="password" autoComplete="current-password" required />
-          </div>
-
-          {linkExpired ? <p className="text-sm text-destructive">{t("linkExpired")}</p> : null}
           {state.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
 
-          <SubmitButton label={t("loginButton")} />
+          <SubmitButton label={t("sendResetLinkButton")} />
 
           <p className="text-center text-sm text-muted-foreground">
-            {t("noAccount")}{" "}
-            <Link href="/signup" className="text-foreground underline underline-offset-4">
-              {t("signupLink")}
+            <Link href="/login" className="text-foreground underline underline-offset-4">
+              {t("backToLogin")}
             </Link>
           </p>
         </form>

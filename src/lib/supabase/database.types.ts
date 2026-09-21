@@ -137,6 +137,21 @@ export type Database = {
         Args: { p_line_channel_id: string };
         Returns: undefined;
       };
+      get_user_id_by_email: {
+        Args: { p_email: string };
+        Returns: string | null;
+      };
+      get_organization_members: {
+        Args: { p_organization_id: string };
+        Returns: {
+          id: string;
+          user_id: string;
+          role: OrgRole;
+          email: string;
+          full_name: string | null;
+          created_at: string;
+        }[];
+      };
     };
   };
 };

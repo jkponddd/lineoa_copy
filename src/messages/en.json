@@ -24,7 +24,19 @@
     "haveAccount": "Already have an account?",
     "signupLink": "Sign up",
     "loginLink": "Log in",
-    "confirmEmail": "We've sent a confirmation link to your email. Please confirm before logging in."
+    "confirmEmail": "We've sent a confirmation link to your email. Please confirm before logging in.",
+    "forgotPasswordLink": "Forgot password?",
+    "forgotPasswordTitle": "Forgot password",
+    "forgotPasswordDescription": "Enter your email and we'll send you a link to set a new password.",
+    "sendResetLinkButton": "Send reset link",
+    "resetEmailSent": "If an account exists for that email, we've sent a link to set a new password.",
+    "backToLogin": "Back to log in",
+    "resetPasswordTitle": "Set a new password",
+    "resetPasswordDescription": "Enter your new password.",
+    "newPassword": "New password",
+    "resetPasswordButton": "Save new password",
+    "sessionExpired": "Your session expired. Please request a new reset link.",
+    "linkExpired": "That link has expired or was already used. Please try again."
   },
   "onboarding": {
     "title": "Create your organization",
@@ -82,5 +94,27 @@
     "verifyingToken": "Verifying the channel access token with LINE...",
     "invalidToken": "The channel access token is invalid, or the LINE API call failed. Please check it and try again.",
     "duplicateChannel": "This channel is already connected (matching Channel ID or bot)."
+  },
+  "orgMembers": {
+    "title": "Users",
+    "description": "Manage members and roles in this organization.",
+    "addButton": "Add member",
+    "addTitle": "Add a member",
+    "addDescription": "Enter the email of an existing account.",
+    "emailLabel": "Email",
+    "roleLabel": "Role",
+    "roleOwner": "Owner",
+    "roleAgent": "Agent",
+    "roleAnalyst": "Analyst",
+    "tableEmail": "Email",
+    "tableName": "Name",
+    "tableRole": "Role",
+    "tableJoined": "Joined",
+    "removeButton": "Remove",
+    "removeConfirm": "Remove this member from the organization?",
+    "emailRequired": "Email is required.",
+    "userNotFound": "No account found for that email. The person needs to sign up before they can be added.",
+    "alreadyMember": "That email is already a member of this organization.",
+    "lastOwnerError": "You can't remove or change the role of the organization's last owner."
   }
 }

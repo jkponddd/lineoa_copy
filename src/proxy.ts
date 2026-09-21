@@ -40,5 +40,9 @@ export default async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|trpc|_next|_vercel|.*\\..*).*)"],
+  // `auth` excluded alongside `api`: /auth/confirm (the email-link token
+  // exchange route) isn't locale-prefixed and must never be rewritten to
+  // /th/auth/confirm — found by testing the password reset flow, where
+  // next-intl's routing was silently redirecting the link and breaking it.
+  matcher: ["/((?!api|auth|trpc|_next|_vercel|.*\\..*).*)"],
 };

@@ -242,3 +242,79 @@ Root cause found by accident while grepping the dev server log during this step'
 
 - Inbox feature (persisting/displaying received messages, and actually using `replyMessage`/`pushMessage` from a real feature) — the webhook handler acknowledges and logs events but doesn't store them anywhere yet; that's its own scoping decision.
 - Regenerate `database.types.ts` from the live project once the CLI is linked (still using the SQL-Editor workflow, so this hasn't happened).
+
+---
+
+## 2026-09-21 — Phase 1, Step 5: Password reset
+
+**What was built**
+
+- `src/app/auth/confirm/route.ts` — GET Route Handler, not under `src/app/[locale]/` (it's an email-link target with its own `token_hash`/`type`/`next`, no locale of its own). Exchanges the one-time token for a real session via `supabase.auth.verifyOtp({type, token_hash})`, then redirects to `next` — which is the full destination URL, not a bare path (see below). Falls back to `/login?error=linkExpired` if verification fails.
+- `requestPasswordReset` / `updatePassword` actions added to `(auth)/actions.ts`. `requestPasswordReset` calls `resetPasswordForEmail(email, {redirectTo})` — deliberately returns the same "check your email" response whether or not the address is registered (Supabase's own anti-enumeration behavior; the UI doesn't undermine it by branching on the result).
+- `/forgot-password` and `/reset-password` pages + forms. `/reset-password` checks server-side for a session (only reachable by way of `/auth/confirm` actually verifying a token) and bounces to `/login` otherwise.
+- "Forgot password?" link added to the login form; login page shows a message when arriving via an expired/invalid reset link (`?error=linkExpired`).
+
+**Bugs found and fixed by testing, not by inspection**
+
+1. **`/auth/confirm` was being redirected to `/th/auth/confirm` by our own middleware** — `proxy.ts`'s matcher ran next-intl's locale routing over every path except `api`/`trpc`/`_next`/`_vercel`, and `/auth/confirm` didn't match any of those, so it got silently locale-prefixed to a URL nothing serves. Caught by the very first attempt to actually drive the flow through a browser (curl/unit-level checks wouldn't have caught this — it's specifically a middleware-routing interaction). Fixed by adding `auth` to the matcher's exclusion list, same treatment as `api`.
+2. **Initial design mistake, caught before writing the route handler** (research first, this time): almost built the email template link as `/auth/confirm?next=/reset-password` with a hardcoded path, matching Supabase's basic docs example literally. Re-checked and confirmed `{{ .RedirectTo }}` exists as a template variable reflecting whatever `redirectTo` was passed to `resetPasswordForEmail()` at call time — switched to that, so `next` carries the correct locale-specific destination (e.g. `/th/reset-password` vs `/en/reset-password`) dynamically instead of a hardcoded, non-locale-aware path.
+
+**Verified against the live database and a live dev server — the full loop, not just pieces**
+
+Used `supabase.auth.admin.generateLink({type: 'recovery', email})` to get a real `hashed_token` for the `owner@example.com` test account without needing to receive an actual email, then drove the whole thing through a browser exactly as a real user would:
+1. Visiting the `/auth/confirm?token_hash=...&type=recovery&next=...` link lands on `/th/reset-password` (PASS, after the middleware fix above).
+2. Submitting a new password redirects to `/th/app` (PASS).
+3. Signing out and logging back in with the **new** password succeeds (PASS — confirms the password was actually changed in Supabase, not just that the form submitted without error).
+4. An invalid/tampered `token_hash` correctly bounces to `/login?error=linkExpired` with the right message shown (PASS).
+5. Afterward, reset `owner@example.com`'s password back to the documented `Owner@123456` via the admin API and re-verified login still works — the credentials given to the user earlier in this project remain valid.
+
+`next build`, `tsc --noEmit`, `eslint` all clean.
+
+**Manual step still needed from the user — not something I can do via SQL Editor or the service role key**
+
+The **"Reset Password" email template** in the Supabase dashboard (Authentication → Email Templates) needs to be updated so the link it sends actually points through our `/auth/confirm` route instead of Supabase's default hosted confirmation page:
+```html
+<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next={{ .RedirectTo }}">Reset password</a>
+```
+Everything above was verified mechanically correct using `generateLink()` to bypass needing a real email — but the actual "Forgot password?" button in the running app won't work end-to-end for a real user until this template is updated, since email templates aren't something the service role key or SQL Editor can touch.
+
+**Open items / not built yet**
+
+- The "Reset Password" email template update above (user needs to do this in the dashboard) — **still pending**, user chose to defer it and work on something else instead.
+- Whether to also switch the "Confirm signup" email template to the same `/auth/confirm` pattern — left alone for now to avoid touching a flow that wasn't the target of this step; worth doing for consistency later.
+- Inbox feature (persisting/displaying received messages, and actually using `replyMessage`/`pushMessage` from a real feature).
+- Regenerate `database.types.ts` from the live project once the CLI is linked (still using the SQL-Editor workflow, so this hasn't happened).
+
+---
+
+## 2026-09-21 (continued) — Phase 1, Step 6: Admin Panel — organization user/role management
+
+Scope confirmed with user beforehand: manage members of the *current* org only (view, change role, remove), and add a member **by email for an account that already exists** — not a full email-invite flow (send invite → recipient signs up → auto-joins) for people without accounts yet. That's a meaningfully bigger feature (its own table, its own email template) and was explicitly scoped out for this step.
+
+**What was built**
+
+- Two new migrations, both applied and verified live:
+  - `20260921000000_org_member_management.sql` — `get_user_id_by_email(email)` (SECURITY DEFINER, `authenticated`-only; resolves an email to a user id so the client can add an existing account to the org — `auth.users` isn't PostgREST-exposed, so there was no way to do this without it). Also a `prevent_last_owner_removal` trigger on `organization_members` (`BEFORE UPDATE OR DELETE`) — an organization with zero owners is an invalid state (nobody could manage it again, every owner-gated action requires `is_org_owner()`), enforced at the trigger level so it holds no matter which code path touches the table, not just the UI.
+  - `20260921010000_get_organization_members.sql` — `get_organization_members(org_id)`, another SECURITY DEFINER function joining `organization_members` + `auth.users` + `profiles`, because the members list needs to *show* email too and the same auth.users-isn't-exposed gap applied there. Deliberately didn't denormalize email into `profiles` (would need its own sync trigger for Supabase's email-change flow) — `auth.users` stays the single source of truth.
+- `/admin/users` page: member table (email, name, role, joined date) + `AddMemberSheet` (email + role) + inline `MemberRoleSelect` (role dropdown, changes immediately on select) + `RemoveMemberButton` (with a confirm dialog). New nav item.
+- Added shadcn `select`, `table`, `badge` components.
+
+**Bug found and fixed during this step, not by inspection**
+
+`<Select.Value />` (Base UI) renders the **raw stored value** by default (`owner`, `agent`, `analyst`) rather than the matching `<Select.Item>`'s label — caught by actually looking at a screenshot of the running page, not by reading the component code. Fixed by passing a children render function (`{(value) => roleLabels[value]}`) in both `AddMemberSheet` and `MemberRoleSelect`, per Base UI's documented `Select.Value` API (`children?: ReactNode | ((value) => ReactNode)`).
+
+**Verified against the live database and a live dev server**
+
+- Both migrations syntax-checked via `libpg-query` before being run.
+- `get_user_id_by_email`: finds an existing user (PASS), returns `null` for an unknown email (PASS).
+- Last-owner safeguard tested directly against the DB with the real owner/agent test accounts: deleting the sole owner blocked (PASS), demoting the sole owner via update blocked (PASS), DB state unchanged after both blocked attempts (PASS), then — with a second owner temporarily promoted — demoting the original owner succeeded (PASS), confirming the check is specifically "last owner," not "owner, ever." Test accounts' roles restored to their documented values afterward and re-verified.
+- `get_organization_members`: owner sees all 3 members with correct emails (PASS); an anonymous (no session) call is flatly rejected — `permission denied for function` — rather than returning data (PASS).
+- Full UI flow driven with a headless browser against the live app: member list renders correctly; adding a nonexistent email shows the right error; adding a real, previously-unaffiliated user succeeds and appears in the list; adding that same email again correctly says "already a member"; changing a member's role via the dropdown actually updates the database (confirmed by querying it directly, not just that the UI didn't show an error); removing a member actually removes them; an agent (non-owner) hitting `/admin/users` directly still bounces to `/app` (the existing layout-level guard covers this new route automatically, same as it did for `/admin/line-channels`). All test data (the temporary "New Member" account) cleaned up afterward — confirmed back to exactly the 3 documented test accounts with their original roles.
+- `next build`, `tsc --noEmit`, `eslint` all clean.
+
+**Open items / not built yet**
+
+- Full invite-by-email flow for people without an existing account (would need an `organization_invites` table, an email template, and an accept-invite flow) — explicitly out of scope for this step, noted here in case it's wanted later.
+- The "Reset Password" email template update from the previous step — still pending on the user.
+- Inbox feature.
+- Regenerate `database.types.ts` from the live project once the CLI is linked.

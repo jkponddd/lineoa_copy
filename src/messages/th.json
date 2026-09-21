@@ -24,7 +24,19 @@
     "haveAccount": "มีบัญชีอยู่แล้ว?",
     "signupLink": "สมัครสมาชิก",
     "loginLink": "เข้าสู่ระบบ",
-    "confirmEmail": "เราส่งลิงก์ยืนยันไปที่อีเมลของคุณแล้ว กรุณายืนยันก่อนเข้าสู่ระบบ"
+    "confirmEmail": "เราส่งลิงก์ยืนยันไปที่อีเมลของคุณแล้ว กรุณายืนยันก่อนเข้าสู่ระบบ",
+    "forgotPasswordLink": "ลืมรหัสผ่าน?",
+    "forgotPasswordTitle": "ลืมรหัสผ่าน",
+    "forgotPasswordDescription": "กรอกอีเมลของคุณ เราจะส่งลิงก์สำหรับตั้งรหัสผ่านใหม่ไปให้",
+    "sendResetLinkButton": "ส่งลิงก์รีเซ็ตรหัสผ่าน",
+    "resetEmailSent": "ถ้ามีบัญชีที่ใช้อีเมลนี้อยู่ในระบบ เราได้ส่งลิงก์สำหรับตั้งรหัสผ่านใหม่ไปที่อีเมลนั้นแล้ว",
+    "backToLogin": "กลับไปหน้าเข้าสู่ระบบ",
+    "resetPasswordTitle": "ตั้งรหัสผ่านใหม่",
+    "resetPasswordDescription": "กรอกรหัสผ่านใหม่ของคุณ",
+    "newPassword": "รหัสผ่านใหม่",
+    "resetPasswordButton": "บันทึกรหัสผ่านใหม่",
+    "sessionExpired": "เซสชันหมดอายุ กรุณาขอลิงก์รีเซ็ตรหัสผ่านใหม่อีกครั้ง",
+    "linkExpired": "ลิงก์หมดอายุหรือใช้ไปแล้ว กรุณาลองใหม่อีกครั้ง"
   },
   "onboarding": {
     "title": "สร้างองค์กรของคุณ",
@@ -82,5 +94,27 @@
     "verifyingToken": "กำลังตรวจสอบ Channel Access Token กับ LINE...",
     "invalidToken": "Channel Access Token ไม่ถูกต้อง หรือ LINE API เรียกไม่สำเร็จ กรุณาตรวจสอบอีกครั้ง",
     "duplicateChannel": "Channel นี้เชื่อมต่ออยู่แล้ว (Channel ID หรือ Bot ซ้ำกับที่มีอยู่)"
+  },
+  "orgMembers": {
+    "title": "ผู้ใช้งาน",
+    "description": "จัดการสมาชิกและบทบาทในองค์กรนี้",
+    "addButton": "เพิ่มสมาชิก",
+    "addTitle": "เพิ่มสมาชิก",
+    "addDescription": "กรอกอีเมลของบัญชีที่มีอยู่แล้วในระบบ",
+    "emailLabel": "อีเมล",
+    "roleLabel": "บทบาท",
+    "roleOwner": "Owner",
+    "roleAgent": "Agent",
+    "roleAnalyst": "Analyst",
+    "tableEmail": "อีเมล",
+    "tableName": "ชื่อ",
+    "tableRole": "บทบาท",
+    "tableJoined": "เข้าร่วมเมื่อ",
+    "removeButton": "ลบ",
+    "removeConfirm": "ยืนยันลบสมาชิกคนนี้ออกจากองค์กร?",
+    "emailRequired": "กรุณากรอกอีเมล",
+    "userNotFound": "ไม่พบบัญชีที่ใช้อีเมลนี้ ผู้ใช้ต้องสมัครสมาชิกก่อนจึงจะเพิ่มเข้าองค์กรได้",
+    "alreadyMember": "อีเมลนี้เป็นสมาชิกขององค์กรอยู่แล้ว",
+    "lastOwnerError": "ไม่สามารถลบหรือเปลี่ยนบทบาทเจ้าของคนสุดท้ายขององค์กรได้"
   }
 }
