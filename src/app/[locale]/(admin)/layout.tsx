@@ -38,6 +38,7 @@ function AdminLayoutShell({
 
   const navItems: NavItem[] = [
     { label: t("nav.organization"), href: "/admin/organization", icon: "building" },
+    { label: t("nav.lineChannels"), href: "/admin/line-channels", icon: "link" },
     { label: t("nav.users"), href: "/admin/users", icon: "users" },
     { label: t("nav.roles"), href: "/admin/roles", icon: "shieldCheck" },
     { label: t("nav.billing"), href: "/admin/billing", icon: "creditCard" },

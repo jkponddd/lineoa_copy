@@ -53,6 +53,7 @@
     "sectionTitle": "Admin Panel",
     "nav": {
       "organization": "Organization",
+      "lineChannels": "LINE Channels",
       "users": "Users",
       "roles": "Roles",
       "billing": "Billing",
@@ -60,5 +61,26 @@
       "auditLog": "Audit Log"
     },
     "primaryAction": "Add User"
+  },
+  "lineChannels": {
+    "title": "LINE Channels",
+    "description": "Connect a LINE Official Account to this organization to start sending and receiving messages.",
+    "empty": "No LINE channel connected yet.",
+    "connectButton": "Connect a channel",
+    "connectTitle": "Connect a LINE channel",
+    "connectDescription": "Enter the values from the LINE Developers Console (Basic settings and Messaging API tabs).",
+    "displayNameLabel": "Display name for this channel",
+    "displayNamePlaceholder": "e.g. My Shop",
+    "channelIdLabel": "Channel ID",
+    "channelSecretLabel": "Channel Secret",
+    "channelAccessTokenLabel": "Channel Access Token",
+    "cancelButton": "Cancel",
+    "disconnectButton": "Disconnect",
+    "disconnectConfirm": "Disconnect this channel?",
+    "connectedAt": "Connected",
+    "channelIdLabelShort": "Channel ID",
+    "verifyingToken": "Verifying the channel access token with LINE...",
+    "invalidToken": "The channel access token is invalid, or the LINE API call failed. Please check it and try again.",
+    "duplicateChannel": "This channel is already connected (matching Channel ID or bot)."
   }
 }

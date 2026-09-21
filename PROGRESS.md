@@ -138,5 +138,107 @@ Used the service-role key to create real (pre-confirmed) test users via the admi
 - Password reset / forgot-password flow.
 - Inviting other members to an organization (schema + RLS support it — `organization_members` insert is owner-gated — but there's no UI/action for it yet).
 - Per-feature permission checks within `/app` for agent vs. analyst (today's role split is only the coarse owner-vs-everyone-else gate on `/admin`).
-- LINE channel credentials table — later step.
+- Regenerate `database.types.ts` from the live project once the CLI is linked (still using the SQL-Editor workflow, so this hasn't happened).
+
+---
+
+## 2026-09-17 — Phase 1, Step 4 (part 1): LINE channel credential storage + connect-channel UI
+
+User has no real LINE Official Account yet, so this step is split: build and fully verify everything that doesn't need live LINE credentials (schema, encrypted storage, admin UI, signature-verification logic), and clearly flag what's still unverified until a real channel exists (the webhook receiver end-to-end, actually sending a message).
+
+**What was built**
+
+- `supabase/migrations/20260917180000_line_channels.sql` — `line_channels` table (org-scoped, RLS). Channel secret and access token are **never plaintext columns** — they're stored via **Supabase Vault** (`vault.create_secret`/`vault.decrypted_secrets`), and `line_channels` only holds foreign keys into `vault.secrets`. Chosen over hand-rolled `pgcrypto` encryption because it's the Supabase-native tool for exactly this, with key management handled by Supabase rather than us.
+  - `create_line_channel(...)` — owner-only (re-checks `is_org_owner()` itself, SECURITY DEFINER), the only way to insert a row.
+  - `get_line_channel_secrets(...)` — decrypts and returns both secrets. **`service_role` only** — `authenticated` and `anon` are explicitly revoked, so not even an organization's own owner can call this and get plaintext secrets back through their normal session. Only trusted server-side code with the service role key can ever see a decrypted value.
+  - `delete_line_channel(...)` — owner-only, cleans up the Vault rows too.
+  - `docs/decisions/0003-line-credential-storage.md` — full reasoning.
+- **Bug caught before any webhook code was written** (by checking LINE's actual docs, not assuming from memory): LINE's webhook request body never contains the numeric Channel ID from the Developers Console — it contains a `destination` field, which is the bot's own user ID, specifically documented by LINE for "which of my channels is this webhook for." Fixed in a same-day follow-up migration, `20260917190000_line_channels_bot_user_id.sql`, adding a `bot_user_id` column (unique, fetched via LINE's "Get bot info" API at connect time) and `get_line_channel_secrets_by_bot_user_id(...)` for the actual webhook-routing lookup path.
+- `src/lib/supabase/service-role.ts` — new client helper for the service-role-only privileged operations above (webhook handler, push sender, once built).
+- `src/lib/line/verify-signature.ts` — LINE webhook signature verification (HMAC-SHA256 of the raw body using the channel secret, compared to the `x-line-signature` header, per LINE's documented scheme).
+- `src/lib/line/get-bot-info.ts` — calls LINE's `GET /v2/bot/info`; used at connect-time to fetch `bot_user_id` and to validate the pasted access token actually works before anything is stored.
+- Admin UI: `/admin/line-channels` — list of connected channels (metadata only) + a sheet-based "connect a channel" form (`ConnectLineChannelSheet`) + `DisconnectLineChannelButton`. New nav item across both mobile and desktop shells.
+- `database.types.ts` extended with `line_channels` and the three RPC function signatures.
+
+**Verified against the live database and live LINE API (not just written and assumed correct)**
+
+- Both migrations syntax-checked via `libpg-query` before being run.
+- Full RLS/authorization matrix tested with real accounts (owner/agent from the auth step) via the JS client, using fake channel credentials: non-owner blocked from creating a channel (PASS), owner can create one (PASS), the secret never appears in the plaintext `line_channels` row (PASS), a member (non-owner) can see channel *metadata* (PASS), an **owner's own authenticated session is blocked** from calling `get_line_channel_secrets` (PASS — permission denied, confirms the service-role-only design actually holds), `service_role` decrypts correctly (PASS), an anonymous request sees zero rows (PASS), deletion removes the row (PASS).
+- Same matrix re-run after the `bot_user_id` fix: webhook-routing lookup (`get_line_channel_secrets_by_bot_user_id`) returns the right channel and decrypts correctly (PASS), still blocked for non-service-role callers (PASS), `bot_user_id` uniqueness enforced (PASS).
+- `getLineBotInfo()` cross-checked against LINE's real, live API with an invalid token — confirmed it returns 401 and the function's error path handles that correctly. (The success path — a real token — is not verified; no real channel exists yet.)
+- `verifyLineSignature()` cross-checked against an independently-computed HMAC (not just re-running the same code): valid signature accepted, tampered body rejected, wrong secret rejected, missing/garbage header rejected, empty-body edge case correct.
+- Admin UI driven end-to-end with a headless browser against the live app + database: empty state renders, connect sheet submits and correctly surfaces "invalid token" for a fake token (real LINE API rejection, not a stub), a channel seeded directly via the RPC shows up correctly in the list, an agent (non-owner) hitting `/admin/line-channels` directly is still bounced to `/app` (confirms the layout-level guard covers new admin routes automatically, no per-page auth code needed), disconnect removes it from both the UI and the database. All test data cleaned up afterward — confirmed zero `line_channels` rows left over.
+- `next build`, `tsc --noEmit`, `eslint` all clean.
+
+**Not verified — genuinely can't be, without a real LINE channel**
+
+- The webhook route handler itself hasn't been built yet (next part of this step).
+- Nothing has been tested against a real LINE webhook delivery or a real push/reply API call — that needs the user to actually create a LINE Official Account (guided through this in conversation) and connect it through the new admin UI.
+
+**Open items / not built yet**
+
+- Push/reply message sending (LINE's REST API).
+- Regenerate `database.types.ts` from the live project once the CLI is linked (still using the SQL-Editor workflow, so this hasn't happened).
+
+---
+
+## 2026-09-18 — Phase 1, Step 4 (part 2): LINE webhook route handler
+
+**What was built**
+
+- `src/app/api/line/webhook/route.ts` — POST handler, not under `src/app/[locale]/` since LINE calls it directly (no locale/UI concerns). Flow: read raw body text (signature verification needs the exact bytes, not a `JSON.parse`/`JSON.stringify` round-trip) → extract `destination` → look up the channel via `get_line_channel_secrets_by_bot_user_id` (service role) → verify `x-line-signature` against the found channel's secret → acknowledge. Unrecognized `destination` → 200 (nothing to act on, and returning non-200 would just make LINE retry pointlessly). Bad/missing signature → 401. Malformed body → 400.
+- `src/lib/line/types.ts` — deliberately loose `LineWebhookEvent`/`LineWebhookBody` types (just enough to log/route what arrives; full per-event-type modeling belongs with the Inbox feature that will actually consume these events, not the webhook receiver).
+- Event *processing* (persisting messages, auto-reply, an actual inbox) is explicitly out of scope for this step — the handler verifies and acknowledges, and logs what it received. Building that out is its own future step once Inbox is scoped.
+
+**Verified against the live dev server + live database (real HTTP requests, not simulated)**
+
+Seeded a real test channel (via the owner account + `create_line_channel`) with a known secret, computed real HMAC-SHA256 signatures, and sent actual POST requests to the running server:
+1. Correctly-signed request → 200 (PASS)
+2. Wrong signature → 401 (PASS)
+3. Missing signature header → 401 (PASS)
+4. Signature valid for the body but destination doesn't match any of our channels → 200, silent ack (PASS)
+5. Malformed JSON body → 400 (PASS)
+6. Body tampered after signing (signature no longer matches) → 401 (PASS)
+7. Cleaned up the test channel afterward.
+
+`next build`, `tsc --noEmit`, `eslint` all clean.
+
+**Resolved: the "Hydration failed" bug reported earlier, still open in PROGRESS.md as unreproducible**
+
+Root cause found by accident while grepping the dev server log during this step's testing — the full React error (previously only seen truncated) shows the actual DOM diff:
+
+```
+<div
++   className="flex min-h-svh"
+-   className={null}
+-   id="island-alerts-shadow-root"
+-   style={{all:"initial"}}
+>
+```
+
+`island-alerts-shadow-root` is not anything in this codebase — it's injected by a third-party browser extension/security product (consistent with "Island," an enterprise browser security tool that wraps pages in a shadow-root overlay) into the user's own browser tab, ahead of React's hydration. This is exactly the "browser extension modifies the DOM before hydration" cause flagged as the leading hypothesis when this was first reported and couldn't be reproduced in a clean headless-browser session. **Not an app bug** — confirmed by every functional test throughout this whole session showing zero actual breakage; React recovers by re-rendering the affected subtree client-side. Nothing to fix in the codebase. Closing this out; revisit only if it starts causing a *visible* problem (not just a console warning) in the user's actual browser.
+
+**Open items / not built yet**
+
+- Inbox feature (persisting/displaying received messages) — the webhook handler acknowledges and logs events but doesn't store them anywhere yet; that's its own scoping decision.
+- Regenerate `database.types.ts` from the live project once the CLI is linked (still using the SQL-Editor workflow, so this hasn't happened).
+
+---
+
+## 2026-09-18 — Phase 1, Step 4 (part 3): LINE push/reply message sending
+
+**What was built**
+
+- `src/lib/line/send-message.ts` — `replyMessage(channelAccessToken, replyToken, messages)` and `pushMessage(channelAccessToken, to, messages)`, thin wrappers around LINE's `POST /v2/bot/message/reply` and `/push`. Both take the access token as a plain argument rather than looking it up themselves — keeps the LINE API call pure and testable, separate from the Supabase lookup.
+- `src/lib/line/get-channel-access-token.ts` — the one place in the app allowed to call `get_line_channel_secrets` (service-role-only at the DB level) to fetch a channel's token for sending.
+- `LineTextMessage`/`LineMessage` types added to `src/lib/line/types.ts` — text typed explicitly, other message kinds (image, flex, template) left as a loose fallback until a feature actually needs them.
+- Deliberately **not wired into any product behavior yet** (no auto-reply in the webhook handler, no broadcast UI) — that's a product decision (what should the bot actually say/do) separate from "can we call LINE's send API correctly," which is what this step covers.
+
+**Verified against LINE's real, live API** (request shape confirmed against LINE's docs before writing, not from memory alone — see sources in the conversation) — both endpoints reachable, both return the expected `401` + error body for an invalid token, confirmed both via `curl` directly and via a standalone run of the actual function logic. The success path (a real token, a real message actually delivered) is **not verified** — no real LINE channel exists yet.
+
+`next build`, `tsc --noEmit`, `eslint` all clean.
+
+**Open items / not built yet**
+
+- Inbox feature (persisting/displaying received messages, and actually using `replyMessage`/`pushMessage` from a real feature) — the webhook handler acknowledges and logs events but doesn't store them anywhere yet; that's its own scoping decision.
 - Regenerate `database.types.ts` from the live project once the CLI is linked (still using the SQL-Editor workflow, so this hasn't happened).

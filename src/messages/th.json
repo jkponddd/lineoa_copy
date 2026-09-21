@@ -53,6 +53,7 @@
     "sectionTitle": "แผงควบคุมผู้ดูแลระบบ",
     "nav": {
       "organization": "องค์กร",
+      "lineChannels": "LINE Channels",
       "users": "ผู้ใช้งาน",
       "roles": "บทบาท",
       "billing": "การเรียกเก็บเงิน",
@@ -60,5 +61,26 @@
       "auditLog": "บันทึกการตรวจสอบ"
     },
     "primaryAction": "เพิ่มผู้ใช้"
+  },
+  "lineChannels": {
+    "title": "LINE Channels",
+    "description": "เชื่อมต่อ LINE Official Account เข้ากับองค์กรนี้ เพื่อเริ่มรับ-ส่งข้อความ",
+    "empty": "ยังไม่มี LINE Channel ที่เชื่อมต่อ",
+    "connectButton": "เชื่อมต่อ Channel ใหม่",
+    "connectTitle": "เชื่อมต่อ LINE Channel",
+    "connectDescription": "กรอกข้อมูลจาก LINE Developers Console (Basic settings และ Messaging API)",
+    "displayNameLabel": "ชื่อเรียก Channel นี้",
+    "displayNamePlaceholder": "เช่น ร้านของฉัน",
+    "channelIdLabel": "Channel ID",
+    "channelSecretLabel": "Channel Secret",
+    "channelAccessTokenLabel": "Channel Access Token",
+    "cancelButton": "ยกเลิก",
+    "disconnectButton": "ยกเลิกการเชื่อมต่อ",
+    "disconnectConfirm": "ยืนยันยกเลิกการเชื่อมต่อ Channel นี้?",
+    "connectedAt": "เชื่อมต่อเมื่อ",
+    "channelIdLabelShort": "Channel ID",
+    "verifyingToken": "กำลังตรวจสอบ Channel Access Token กับ LINE...",
+    "invalidToken": "Channel Access Token ไม่ถูกต้อง หรือ LINE API เรียกไม่สำเร็จ กรุณาตรวจสอบอีกครั้ง",
+    "duplicateChannel": "Channel นี้เชื่อมต่ออยู่แล้ว (Channel ID หรือ Bot ซ้ำกับที่มีอยู่)"
   }
 }

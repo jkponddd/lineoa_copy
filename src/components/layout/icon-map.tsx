@@ -11,6 +11,7 @@ import {
   Settings,
   FileClock,
   UserPlus,
+  Link2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -27,6 +28,7 @@ export const navIcons = {
   settings: Settings,
   fileClock: FileClock,
   userPlus: UserPlus,
+  link: Link2,
 } satisfies Record<string, LucideIcon>;
 
 export type NavIconName = keyof typeof navIcons;

@@ -91,8 +91,52 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["audit_log"]["Insert"]>;
         Relationships: [];
       };
+      line_channels: {
+        Row: {
+          id: string;
+          organization_id: string;
+          line_channel_id: string;
+          bot_user_id: string;
+          display_name: string;
+          channel_secret_id: string;
+          channel_access_token_id: string;
+          created_at: string;
+          updated_at: string;
+        };
+        // No Insert type on purpose — rows are only ever created via the
+        // create_line_channel() RPC (see docs/decisions/0003), never a
+        // direct table insert, since that's the only path that correctly
+        // populates channel_secret_id/channel_access_token_id.
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      create_line_channel: {
+        Args: {
+          p_organization_id: string;
+          p_line_channel_id: string;
+          p_bot_user_id: string;
+          p_display_name: string;
+          p_channel_secret: string;
+          p_channel_access_token: string;
+        };
+        Returns: Database["public"]["Tables"]["line_channels"]["Row"];
+      };
+      get_line_channel_secrets: {
+        Args: { p_line_channel_id: string };
+        Returns: { channel_secret: string; channel_access_token: string }[];
+      };
+      get_line_channel_secrets_by_bot_user_id: {
+        Args: { p_bot_user_id: string };
+        Returns: { line_channel_id: string; channel_secret: string; channel_access_token: string }[];
+      };
+      delete_line_channel: {
+        Args: { p_line_channel_id: string };
+        Returns: undefined;
+      };
+    };
   };
 };
