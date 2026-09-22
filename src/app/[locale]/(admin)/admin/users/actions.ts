@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { getCurrentMembership } from "@/lib/supabase/get-current-membership";
 import { logAuditEvent } from "@/lib/audit/log";
-import { getSiteOrigin } from "../../../(auth)/actions";
+import { getSiteOrigin } from "@/lib/get-site-origin";
 import type { OrgRole } from "@/lib/supabase/database.types";
 import type { AuthFormState } from "../../../(auth)/actions";
 

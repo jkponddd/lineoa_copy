@@ -93,7 +93,10 @@
     "channelIdLabelShort": "Channel ID",
     "verifyingToken": "กำลังตรวจสอบ Channel Access Token กับ LINE...",
     "invalidToken": "Channel Access Token ไม่ถูกต้อง หรือ LINE API เรียกไม่สำเร็จ กรุณาตรวจสอบอีกครั้ง",
-    "duplicateChannel": "Channel นี้เชื่อมต่ออยู่แล้ว (Channel ID หรือ Bot ซ้ำกับที่มีอยู่)"
+    "duplicateChannel": "Channel นี้เชื่อมต่ออยู่แล้ว (Channel ID หรือ Bot ซ้ำกับที่มีอยู่)",
+    "webhookUrlTitle": "Webhook URL",
+    "webhookUrlDescription": "คัดลอก URL นี้ไปใส่ในช่อง Webhook URL ที่ LINE Developers Console (แท็บ Messaging API)",
+    "webhookUrlCopy": "คัดลอก"
   },
   "orgMembers": {
     "title": "ผู้ใช้งาน",
@@ -256,5 +259,30 @@
     "deleting": "กำลังลบ...",
     "deleteConfirm": "ยืนยันลบริชเมนูนี้?",
     "actionError": "ดำเนินการไม่สำเร็จ กรุณาลองใหม่"
+  },
+  "roles": {
+    "title": "บทบาท",
+    "description": "สิทธิ์การเข้าถึงของแต่ละบทบาทในองค์กรนี้",
+    "roleOwner": "Owner",
+    "roleAgent": "Agent",
+    "roleAnalyst": "Analyst",
+    "roleOwnerDescription": "จัดการองค์กรได้ทั้งหมด รวมถึงแผงควบคุมผู้ดูแลระบบ (ผู้ใช้งาน, LINE Channels, บันทึกการตรวจสอบ)",
+    "roleAgentDescription": "ใช้งานแอปผู้ใช้ได้เต็มรูปแบบ (กล่องข้อความ, ออกอากาศ, ริชเมนู, รายงาน) แต่เข้าแผงควบคุมผู้ดูแลระบบไม่ได้",
+    "roleAnalystDescription": "ใช้งานแอปผู้ใช้ได้เต็มรูปแบบเช่นเดียวกับ Agent แต่เข้าแผงควบคุมผู้ดูแลระบบไม่ได้",
+    "capabilitiesTitle": "สิทธิ์การใช้งาน",
+    "capabilityColumn": "ฟีเจอร์",
+    "capInbox": "กล่องข้อความ",
+    "capBroadcast": "ออกอากาศ",
+    "capRichMenu": "ริชเมนู",
+    "capReports": "รายงาน",
+    "capAdminPanel": "แผงควบคุมผู้ดูแลระบบ",
+    "agentAnalystNote": "หมายเหตุ: ปัจจุบัน Agent และ Analyst มีสิทธิ์เท่ากันในแอปผู้ใช้ ยังไม่แยกสิทธิ์แบบอ่านอย่างเดียวสำหรับ Analyst"
+  },
+  "billing": {
+    "title": "การเรียกเก็บเงิน",
+    "description": "จัดการแพ็กเกจและการชำระเงินขององค์กรนี้",
+    "currentPlanTitle": "แพ็กเกจปัจจุบัน",
+    "planFree": "Free",
+    "comingSoon": "ยังไม่เปิดให้บริการในขณะนี้"
   }
 }

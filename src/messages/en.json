@@ -93,7 +93,10 @@
     "channelIdLabelShort": "Channel ID",
     "verifyingToken": "Verifying the channel access token with LINE...",
     "invalidToken": "The channel access token is invalid, or the LINE API call failed. Please check it and try again.",
-    "duplicateChannel": "This channel is already connected (matching Channel ID or bot)."
+    "duplicateChannel": "This channel is already connected (matching Channel ID or bot).",
+    "webhookUrlTitle": "Webhook URL",
+    "webhookUrlDescription": "Copy this into the Webhook URL field in the LINE Developers Console (Messaging API tab).",
+    "webhookUrlCopy": "Copy"
   },
   "orgMembers": {
     "title": "Users",
@@ -256,5 +259,30 @@
     "deleting": "Deleting...",
     "deleteConfirm": "Delete this rich menu?",
     "actionError": "Something went wrong. Please try again."
+  },
+  "roles": {
+    "title": "Roles",
+    "description": "What each role can access in this organization.",
+    "roleOwner": "Owner",
+    "roleAgent": "Agent",
+    "roleAnalyst": "Analyst",
+    "roleOwnerDescription": "Manages everything, including the Admin Panel (users, LINE channels, audit log).",
+    "roleAgentDescription": "Full access to the User App (Inbox, Broadcast, Rich Menu, Reports), but no Admin Panel access.",
+    "roleAnalystDescription": "Same User App access as Agent — no Admin Panel access.",
+    "capabilitiesTitle": "Capabilities",
+    "capabilityColumn": "Feature",
+    "capInbox": "Inbox",
+    "capBroadcast": "Broadcast",
+    "capRichMenu": "Rich Menu",
+    "capReports": "Reports",
+    "capAdminPanel": "Admin Panel",
+    "agentAnalystNote": "Note: Agent and Analyst currently have identical permissions in the User App — a read-only distinction for Analyst isn't implemented yet."
+  },
+  "billing": {
+    "title": "Billing",
+    "description": "Manage this organization's plan and payment.",
+    "currentPlanTitle": "Current plan",
+    "planFree": "Free",
+    "comingSoon": "Not available yet."
   }
 }

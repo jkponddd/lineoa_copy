@@ -1,17 +1,10 @@
 "use server";
 
-import { headers } from "next/headers";
 import { getLocale } from "next-intl/server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getSiteOrigin } from "@/lib/get-site-origin";
 import { redirect } from "@/i18n/navigation";
-
-export async function getSiteOrigin(): Promise<string> {
-  const headerList = await headers();
-  const host = headerList.get("x-forwarded-host") ?? headerList.get("host");
-  const protocol = host?.startsWith("localhost") || host?.startsWith("127.0.0.1") ? "http" : "https";
-  return `${protocol}://${host}`;
-}
 
 export type AuthFormState = {
   error: string | null;

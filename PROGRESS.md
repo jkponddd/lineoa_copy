@@ -651,3 +651,31 @@ Picked via AskUserQuestion over the remaining Roles/Billing/Settings placeholder
 - Video, audio, and location messages remain silently skipped (never in scope for this round).
 - No way to *send* a sticker or file as an outbound reply — this round was inbound rendering only; `ReplyComposer` still only supports text and image.
 - Remaining open items across the whole project unchanged: Roles/Billing/Settings admin pages, `database.types.ts` regeneration, real end-to-end LINE OA verification (now including stickers/files specifically, though the sticker rendering path needed no faking at all and is about as proven as it can be without a real account).
+
+---
+
+## 2026-09-22 (continued) — Phase 1, Step 16: Webhook URL display, Roles reference page, Billing placeholder
+
+Closes out the remaining nav items from the Step 1 scaffold that had no page behind them yet. "ตั้งค่าระบบ" (Settings) explicitly deferred per the user — genuinely unclear what it should contain beyond what Organization Settings (Step 9) already covers, and nothing else in the product currently needs it (no notification system exists to configure).
+
+**A real, concrete gap found along the way, not asked for**: nowhere in the app did a user ever see the actual webhook URL (`/api/line/webhook`) they need to paste into the LINE Developers Console when connecting a real channel — every LINE integration built so far (Step 4 onward) assumed the user already knew it. Added a `WebhookUrlCard` to `/admin/line-channels`, computed from the real request origin (extracted the existing `getSiteOrigin()` helper — previously private to the `(auth)` actions file — into a shared `src/lib/get-site-origin.ts`, since it's now needed from both a Server Component and multiple Server Actions), with a working copy-to-clipboard button.
+
+**What was built**
+
+- `/admin/roles` — a static reference table (owner/agent/analyst × 5 capabilities). Deliberately **honest about current reality** rather than aspirational: Agent and Analyst have identical enforced permissions everywhere in this codebase (Inbox reply, Broadcast send, Rich Menu create have never been role-gated beyond org membership — a deliberate consistency choice made back in the Inbox step), so the page says so directly ("Agent and Analyst currently have identical permissions... a read-only distinction for Analyst isn't implemented yet") instead of implying a distinction that isn't actually enforced.
+- `/admin/billing` — an explicit placeholder (current plan shown as "Free", a "not available yet" state) rather than fabricated plan/pricing data. No payment provider is wired up; this is just the empty shell where that will live.
+- `WebhookUrlCard` + `getSiteOrigin()` extraction, as above.
+
+**Verified against the live database and a live dev server**
+
+- No migration needed — none of this touches the database.
+- Webhook URL card: confirmed it renders a real, correctly-formed URL (not a placeholder string) and that the copy button actually writes it to the clipboard (read back via `navigator.clipboard.readText()` in the browser, not just "no error thrown").
+- Roles and Billing pages load correctly; confirmed a non-owner (agent) is bounced away from both by the existing owner-only admin layout guard, same as every other admin route.
+- Checked at desktop, dark mode, and mobile.
+- `next build`, `tsc --noEmit`, `eslint` all clean.
+
+**Open items / not built yet**
+
+- "ตั้งค่าระบบ" (Settings) nav item still has no page — explicitly deferred, not scoped.
+- Roles page is read-only reference content; there's no way to define *custom* roles or change what a role can do (would be a much bigger feature).
+- Everything else carried over: Inbox message types beyond sticker/file, outbound sticker/file replies, `database.types.ts` regeneration, real end-to-end LINE OA verification.

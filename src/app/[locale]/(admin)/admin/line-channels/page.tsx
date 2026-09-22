@@ -2,29 +2,36 @@ import { useTranslations } from "next-intl";
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentMembership } from "@/lib/supabase/get-current-membership";
+import { getSiteOrigin } from "@/lib/get-site-origin";
 import { ConnectLineChannelSheet } from "@/components/admin/connect-line-channel-sheet";
 import { DisconnectLineChannelButton } from "@/components/admin/disconnect-line-channel-button";
+import { WebhookUrlCard } from "@/components/admin/webhook-url-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function LineChannelsPage() {
   const membership = await getCurrentMembership();
   const supabase = await createClient();
 
-  const { data: channels } = membership
-    ? await supabase
-        .from("line_channels")
-        .select("id, line_channel_id, display_name, created_at")
-        .eq("organization_id", membership.organization.id)
-        .order("created_at", { ascending: false })
-    : { data: [] };
+  const [{ data: channels }, origin] = await Promise.all([
+    membership
+      ? supabase
+          .from("line_channels")
+          .select("id, line_channel_id, display_name, created_at")
+          .eq("organization_id", membership.organization.id)
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] }),
+    getSiteOrigin(),
+  ]);
 
-  return <LineChannelsView channels={channels ?? []} />;
+  return <LineChannelsView channels={channels ?? []} webhookUrl={`${origin}/api/line/webhook`} />;
 }
 
 function LineChannelsView({
   channels,
+  webhookUrl,
 }: {
   channels: { id: string; line_channel_id: string; display_name: string; created_at: string }[];
+  webhookUrl: string;
 }) {
   const t = useTranslations("lineChannels");
 
@@ -37,6 +44,8 @@ function LineChannelsView({
         </div>
         <ConnectLineChannelSheet />
       </div>
+
+      <WebhookUrlCard webhookUrl={webhookUrl} />
 
       {channels.length === 0 ? (
         <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">{t("empty")}</div>
