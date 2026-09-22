@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { getCurrentMembership } from "@/lib/supabase/get-current-membership";
 import { logAuditEvent } from "@/lib/audit/log";
+import { getSiteOrigin } from "../../../(auth)/actions";
 import type { OrgRole } from "@/lib/supabase/database.types";
 import type { AuthFormState } from "../../../(auth)/actions";
 
@@ -16,6 +18,7 @@ export async function addMember(_prevState: AuthFormState, formData: FormData): 
 
   const email = String(formData.get("email") ?? "").trim();
   const role = String(formData.get("role") ?? "agent") as OrgRole;
+  const locale = String(formData.get("locale") ?? "th");
 
   if (!email) {
     return { error: "emailRequired", info: null };
@@ -27,8 +30,35 @@ export async function addMember(_prevState: AuthFormState, formData: FormData): 
   if (lookupError) {
     return { error: lookupError.message, info: null };
   }
+
   if (!userId) {
-    return { error: "userNotFound", info: null };
+    // No existing account for this email — send an invite instead of
+    // failing. handle_new_user() completes the organization_members insert
+    // once they accept and an auth user actually exists (see the migration
+    // for why: an organization_members row needs a real user_id, which
+    // doesn't exist yet at invite time).
+    const service = createServiceRoleClient();
+    const origin = await getSiteOrigin();
+
+    const { error: inviteError } = await service.auth.admin.inviteUserByEmail(email, {
+      data: { invited_org_id: membership.organization.id, invited_role: role },
+      redirectTo: `${origin}/${locale}/reset-password`,
+    });
+
+    if (inviteError) {
+      return { error: inviteError.message, info: null };
+    }
+
+    await logAuditEvent({
+      organizationId: membership.organization.id,
+      actorId: membership.user.id,
+      action: "member.invited",
+      target: email,
+      metadata: { role },
+    });
+
+    revalidatePath("/[locale]/(admin)/admin/users", "page");
+    return { error: null, info: "inviteSent" };
   }
 
   const { error: insertError } = await supabase

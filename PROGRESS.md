@@ -590,3 +590,36 @@ Picked via AskUserQuestion from the remaining open items. Turned out to be mostl
 
 - The one piece that remains genuinely unverified across the whole project: an actual image arriving from a real LINE user's device through a real, connected LINE Official Account. Nothing further can close this gap without one existing.
 - Message types beyond text/image (video, audio, file, sticker, location) — still not built, unchanged from Step 7.
+
+---
+
+## 2026-09-22 (continued) — Phase 1, Step 14: Invite-by-email for people without an existing account
+
+Explicitly scoped out of Step 6 ("Full invite-by-email flow... explicitly out of scope for this step"), picked back up via AskUserQuestion.
+
+**Design decision**: used Supabase's own `admin.inviteUserByEmail()` rather than building a bespoke `organization_invites` table + token system. It already does what's needed — creates an unconfirmed auth user and sends an email whose accept link runs through `verifyOtp()`, the exact same mechanism `/auth/confirm` (built in Step 5 for password reset) already handles for any `EmailOtpType`, `'invite'` included. The one gap it doesn't cover — *which organization, what role* — is carried through as `user_metadata` (`invited_org_id`, `invited_role`) set when the invite is sent, and `handle_new_user()` (already running for every new auth user to create their profile row) now also completes the `organization_members` insert if that metadata is present, wrapped in its own exception handler so a malformed/stale invite never blocks account creation itself.
+
+**What was built**
+
+- One migration, applied and verified live: `20260922070000_invite_by_email.sql` — extends `handle_new_user()` only; no new tables.
+- `addMember` (in `admin/users/actions.ts`) now branches on whether `get_user_id_by_email` found an existing account: found → the existing Step 6 behavior (insert directly); not found → calls `inviteUserByEmail` with the org/role metadata and a `redirectTo` pointing at `/reset-password` (reusing that page as-is for "set your initial password," not just "reset" one — same form, same action, no new page needed). Logs a new `member.invited` audit action either way.
+- `AddMemberSheet` updated: the old "no account found" error message is gone (that's no longer an error case); a new `inviteSent` success message explains what happens next, and — unlike the existing-member path — the sheet deliberately does **not** auto-close on invite, since there's no new table row to serve as confirmation the way there is for an existing member.
+- `getSiteOrigin()` (previously local to the auth actions file) exported and reused here, rather than duplicated.
+
+**A real, disclosed behavioral quirk found live (not a bug, but worth knowing)**: `handle_new_user()` fires on `auth.users` row *creation*, which happens at invite-*send* time — so an invited person becomes a real `organization_members` row (visible in the `/admin/users` list, counted everywhere) immediately, before they've clicked anything or set a password. They still can't log in until they do (no password set, email unconfirmed), so this isn't a security gap, but the admin UI currently shows no "pending" distinction — an invited-but-not-yet-accepted row looks identical to an active member. Documented here rather than fixed, since adding that distinction would mean either a real invites table (the exact thing this design avoided) or an extra `auth.users.confirmed_at` lookup per row.
+
+**Verified against the live database and a live dev server**
+
+- Migration applied via SQL Editor, no errors.
+- Discovered along the way: this project's Supabase instance (default built-in email provider, no custom SMTP configured) can't actually send `inviteUserByEmail` to arbitrary test addresses — it fails immediately, either with a misleading "Email address is invalid" or "email rate limit exceeded," regardless of the address's validity. This is an infrastructure/quota limitation of the *default* email sender, not a bug in this feature — confirmed by using `admin.generateLink({ type: 'invite' })` instead (which creates the exact same user + metadata without actually attempting to send anything) and getting a clean success every time.
+- Using `generateLink`, ran the **entire accept flow for real**: generated an invite for a brand-new email with org+role metadata → confirmed the `organization_members` row already existed immediately (the quirk above) → visited the real `/auth/confirm?...&type=invite` link → landed on `/reset-password` (not an error) → set a password → redirected into `/th/app`, **not** bounced to onboarding (proving membership was actually recognized, not just present in the table) → signed out → signed back in with the newly-set password and reached `/app` again. Every step exercised for real, not mocked.
+- Confirmed a malformed `invited_org_id` (a nonexistent uuid) in the metadata does **not** block user creation — the trigger's exception handler holds.
+- Full real UI flow: opened `AddMemberSheet`, entered a genuinely new email, submitted — hit the same real-send limitation described above (`email rate limit exceeded`, shown as-is, not translated — a rough edge, but the form stayed usable and didn't crash). Since the underlying mechanics were already proven correct via `generateLink`, this confirms the send-triggering code path is reached correctly by real UI interaction; the infrastructure limitation is the only thing standing between this and a real email landing in an inbox.
+- `next build`, `tsc --noEmit`, `eslint` all clean. All test users deleted afterward (deleting the `auth.users` row correctly cascade-removes the `organization_members` row too — confirmed directly, not assumed); confirmed the three documented test accounts are the only members left and `audit_log` is empty again.
+
+**Open items / not built yet**
+
+- No "pending invite" indicator in the admin UI (see the quirk above).
+- No way to resend or revoke an invite from the UI (would need to look the user up and call `inviteUserByEmail` again, or `admin.deleteUser`, neither wired up yet).
+- Real email delivery is blocked on configuring custom SMTP for this Supabase project — same category of external dependency as the still-pending Reset Password email template edit from Step 5, not something fixable from application code.
+- Remaining open items across the whole project: message types beyond text/image, Roles/Billing/Settings admin pages (nav items exist, no pages behind them), `database.types.ts` regeneration, and real end-to-end LINE OA verification.

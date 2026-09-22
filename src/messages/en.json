@@ -113,8 +113,8 @@
     "removeButton": "Remove",
     "removeConfirm": "Remove this member from the organization?",
     "emailRequired": "Email is required.",
-    "userNotFound": "No account found for that email. The person needs to sign up before they can be added.",
     "alreadyMember": "That email is already a member of this organization.",
+    "inviteSent": "No account exists for that email yet — an invite was sent. They'll join this organization automatically once they confirm it and set a password.",
     "lastOwnerError": "You can't remove or change the role of the organization's last owner."
   },
   "inbox": {
@@ -146,6 +146,7 @@
     "tableTarget": "Target",
     "systemActor": "System",
     "actionMemberAdded": "Member added",
+    "actionMemberInvited": "New member invited",
     "actionMemberRoleChanged": "Member role changed",
     "actionMemberRemoved": "Member removed",
     "actionLineChannelConnected": "LINE channel connected",

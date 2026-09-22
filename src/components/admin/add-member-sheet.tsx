@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,7 @@ function SubmitButton({ label }: { label: string }) {
 
 export function AddMemberSheet() {
   const t = useTranslations("orgMembers");
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [role, setRole] = useState<OrgRole>("agent");
   const [state, formAction] = useActionState(addMember, initialState);
@@ -51,16 +52,18 @@ export function AddMemberSheet() {
     if (state.info === "memberAdded") {
       setOpen(false);
     }
+    // "inviteSent" deliberately does NOT close the sheet — unlike adding an
+    // existing member, there's no new row in the table to serve as
+    // confirmation, so the success message below is the only feedback the
+    // user gets until they close it themselves.
   }
 
   const errorMessage =
     state.error === "emailRequired"
       ? t("emailRequired")
-      : state.error === "userNotFound"
-        ? t("userNotFound")
-        : state.error === "alreadyMember"
-          ? t("alreadyMember")
-          : state.error;
+      : state.error === "alreadyMember"
+        ? t("alreadyMember")
+        : state.error;
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -76,6 +79,7 @@ export function AddMemberSheet() {
 
         <form action={formAction} className="flex flex-col gap-4 px-4">
           <input type="hidden" name="role" value={role} />
+          <input type="hidden" name="locale" value={locale} />
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="email">{t("emailLabel")}</Label>
@@ -97,6 +101,9 @@ export function AddMemberSheet() {
           </div>
 
           {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
+          {state.info === "inviteSent" ? (
+            <p className="text-sm text-emerald-600 dark:text-emerald-400">{t("inviteSent")}</p>
+          ) : null}
 
           <SheetFooter className="px-0">
             <SubmitButton label={t("addButton")} />

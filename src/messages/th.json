@@ -113,8 +113,8 @@
     "removeButton": "ลบ",
     "removeConfirm": "ยืนยันลบสมาชิกคนนี้ออกจากองค์กร?",
     "emailRequired": "กรุณากรอกอีเมล",
-    "userNotFound": "ไม่พบบัญชีที่ใช้อีเมลนี้ ผู้ใช้ต้องสมัครสมาชิกก่อนจึงจะเพิ่มเข้าองค์กรได้",
     "alreadyMember": "อีเมลนี้เป็นสมาชิกขององค์กรอยู่แล้ว",
+    "inviteSent": "ยังไม่มีบัญชีที่ใช้อีเมลนี้ ส่งคำเชิญไปที่อีเมลแล้ว เมื่อยืนยันและตั้งรหัสผ่านแล้วจะเข้าร่วมองค์กรนี้โดยอัตโนมัติ",
     "lastOwnerError": "ไม่สามารถลบหรือเปลี่ยนบทบาทเจ้าของคนสุดท้ายขององค์กรได้"
   },
   "inbox": {
@@ -146,6 +146,7 @@
     "tableTarget": "เป้าหมาย",
     "systemActor": "ระบบ",
     "actionMemberAdded": "เพิ่มสมาชิก",
+    "actionMemberInvited": "เชิญสมาชิกใหม่",
     "actionMemberRoleChanged": "เปลี่ยนบทบาทสมาชิก",
     "actionMemberRemoved": "ลบสมาชิก",
     "actionLineChannelConnected": "เชื่อมต่อ LINE Channel",

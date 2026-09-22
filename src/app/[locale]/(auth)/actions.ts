@@ -6,7 +6,7 @@ import { getLocale } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "@/i18n/navigation";
 
-async function getSiteOrigin(): Promise<string> {
+export async function getSiteOrigin(): Promise<string> {
   const headerList = await headers();
   const host = headerList.get("x-forwarded-host") ?? headerList.get("host");
   const protocol = host?.startsWith("localhost") || host?.startsWith("127.0.0.1") ? "http" : "https";

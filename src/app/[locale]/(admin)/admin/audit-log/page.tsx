@@ -16,6 +16,7 @@ type AuditLogRow = {
 
 const ACTION_LABEL_KEYS: Record<string, string> = {
   "member.added": "actionMemberAdded",
+  "member.invited": "actionMemberInvited",
   "member.role_changed": "actionMemberRoleChanged",
   "member.removed": "actionMemberRemoved",
   "line_channel.connected": "actionLineChannelConnected",
