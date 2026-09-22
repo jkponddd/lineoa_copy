@@ -135,6 +135,7 @@
     "sendError": "ส่งข้อความไม่สำเร็จ กรุณาลองใหม่",
     "imageAlt": "รูปภาพ",
     "stickerAlt": "สติกเกอร์",
+    "stickerPickerTitle": "เลือกสติกเกอร์",
     "fileAlt": "ไฟล์แนบ",
     "uploadingImage": "กำลังส่งรูปภาพ...",
     "uploadingFile": "กำลังส่งไฟล์...",

@@ -135,6 +135,36 @@ export async function sendFileReply(conversationId: string, mediaPath: string, f
   return { error: null };
 }
 
+export async function sendStickerReply(
+  conversationId: string,
+  packageId: string,
+  stickerId: string,
+): Promise<InboxActionResult> {
+  const loaded = await loadConversationForReply(conversationId);
+  if (!loaded.ok) return { error: loaded.error };
+  const { conversation, accessToken, userId } = loaded;
+
+  const sent = await pushMessage(accessToken, conversation.line_user_id, [
+    { type: "sticker", packageId, stickerId },
+  ]);
+  if (!sent.ok) return { error: "line_api_failed" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("record_outbound_message", {
+    p_conversation_id: conversationId,
+    p_type: "sticker",
+    // Same JSON shape as inbound stickers (see the webhook handler) so
+    // MessageThread's rendering doesn't need to branch on direction.
+    p_content: JSON.stringify({ packageId, stickerId }),
+    p_media_path: null,
+    p_sent_by: userId,
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath("/app/inbox");
+  return { error: null };
+}
+
 export async function assignConversationAction(
   conversationId: string,
   assignedTo: string | null,

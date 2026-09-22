@@ -6,6 +6,7 @@ import { ImagePlus, Paperclip, Send } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { StickerPickerDialog } from "@/components/inbox/sticker-picker-dialog";
 import { createClient } from "@/lib/supabase/client";
 import { sendFileReply, sendImageReply, sendTextReply } from "@/app/[locale]/(app)/app/inbox/actions";
 
@@ -131,6 +132,13 @@ export function ReplyComposer({ conversationId, organizationId }: { conversation
         >
           <Paperclip className="size-4" />
         </Button>
+
+        <StickerPickerDialog
+          conversationId={conversationId}
+          disabled={busy}
+          onSent={() => setError(null)}
+          onError={() => setError(t("sendError"))}
+        />
 
         <Textarea
           value={text}

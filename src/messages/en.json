@@ -135,6 +135,7 @@
     "sendError": "Failed to send. Please try again.",
     "imageAlt": "Image",
     "stickerAlt": "Sticker",
+    "stickerPickerTitle": "Choose a sticker",
     "fileAlt": "Attachment",
     "uploadingImage": "Uploading image...",
     "uploadingFile": "Uploading file...",

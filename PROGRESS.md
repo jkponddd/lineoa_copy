@@ -700,6 +700,32 @@ Closes out the remaining nav items from the Step 1 scaffold that had no page beh
 
 **Open items / not built yet**
 
-- Outbound stickers still not supported (would need a sticker picker UI backed by a known valid packageId/stickerId list — LINE doesn't let a bot send arbitrary sticker IDs, only ones from packages available to that channel).
+- Outbound stickers still not supported (would need a sticker picker UI backed by a known valid packageId/stickerId list — LINE doesn't let a bot send arbitrary sticker IDs, only ones from packages available to that channel). — **added the same day, see the follow-up entry below.**
 - The file's signed link expires after 7 days; there's no mechanism to regenerate/re-share an expired one from the UI.
+- Remaining open items across the whole project unchanged: "ตั้งค่าระบบ" page, `database.types.ts` regeneration, real end-to-end LINE OA verification.
+
+---
+
+## 2026-09-22 (continued) — Phase 1, Step 18: Outbound sticker replies in Inbox
+
+Last well-scoped, unblocked increment before everything remaining is either explicitly deferred (Settings page) or genuinely blocked (`database.types.ts` regen needs a workflow change the user hasn't opted into; real LINE OA verification needs an account that doesn't exist yet).
+
+**What was built**
+
+- No migration — reuses the `'sticker'` type and jsonb `content` shape (`{packageId, stickerId}`) from Step 15's *inbound* sticker rendering, now used for outbound too.
+- `src/lib/line/sample-stickers.ts` — a small curated set of known-good sticker ids. LINE has no API to ask "what stickers can this channel send" — a bot can only push a sticker id that actually exists in a package available to it, so this uses LINE's own documented example package (`11537`, the "Brown & Cony" set from LINE's Messaging API reference docs) rather than guessing at arbitrary ids.
+- `sendStickerReply(conversationId, packageId, stickerId)` — pushes `{ type: "sticker", packageId, stickerId }`, then records it with `record_outbound_message` (`p_type: "sticker"`) only after the push succeeds, same rule as every other outbound path.
+- `StickerPickerDialog` — a small popup (reusing the `Dialog` component from Step 13) showing the curated stickers as thumbnails; picking one sends immediately and closes the dialog. Added to `ReplyComposer` as a third button alongside image/file.
+
+**A real bug caught live, then correctly ruled out as a false alarm — worth recording the process, not just the conclusion**: the first screenshot of the picker showed only 2 of 8 stickers rendering, the rest blank white boxes. Before treating that as "half the curated list is broken," checked the actual CDN responses directly (`curl` — every id returned `200`, real `image/png`, real byte counts in the 5.6–11KB range, not empty). Downloaded two of the "blank" ones and opened them directly — both were genuine, correctly-drawn stickers (a heart-eyed Sally chick, among others), not corrupt or placeholder images. Re-ran the browser check waiting for every `<img>` to actually finish decoding (`naturalWidth > 0`) instead of a fixed timeout, and all 8 rendered correctly. Root cause: the first screenshot was taken before several of the images had finished loading over the network — a timing artifact in the test script itself, not a bug in the sticker data or the component. Recorded here because the *wrong* conclusion ("the curated list is half-broken, cut it down to 2") was genuinely one keystroke away, and the fix would have been to delete working data based on a flawed test.
+
+**Verified against the live database and a live dev server**
+
+- Script-level: `record_outbound_message` accepts `p_type: 'sticker'`.
+- Full real UI flow: seeded a conversation via the real webhook, opened the sticker picker, confirmed it's a real dialog showing all 8 thumbnails, confirmed (after fixing the test's own timing bug, above) that every thumbnail is a genuinely distinct, correctly-rendering LINE sticker — not just that an `<img>` tag existed. Picked one; the dialog closed immediately. The push to LINE's API failed as expected (fake channel credentials, same pattern as every outbound feature in this project) and showed the right error. **Confirmed directly in the database that this left zero outbound message rows** — same "record only after a real success" guarantee verified for text/image/file in earlier steps, now covering sticker too.
+- Zero console/page errors. `next build`, `tsc --noEmit`, `eslint` clean. Test data cleaned up; confirmed test accounts unchanged.
+
+**Open items / not built yet**
+
+- The curated sticker set is small (8) and fixed in code — no way for an org to add their own or browse a larger catalog; a real product would eventually want this backed by whatever sticker packages the channel actually has, which needs infrastructure this template doesn't have.
 - Remaining open items across the whole project unchanged: "ตั้งค่าระบบ" page, `database.types.ts` regeneration, real end-to-end LINE OA verification.
