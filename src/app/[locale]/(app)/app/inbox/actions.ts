@@ -94,6 +94,47 @@ export async function sendImageReply(conversationId: string, mediaPath: string):
   return { error: null };
 }
 
+// LINE's Messaging API's supported outbound message objects are text,
+// sticker, image, video, audio, location, imagemap, template, and flex —
+// there is no "file" type. A bot can never push a file attachment the way
+// it can push an image; sending an arbitrary file back to a LINE user is
+// only possible as a link, so this goes out as a plain text message
+// containing the filename and a download URL, not a native LINE object.
+export async function sendFileReply(conversationId: string, mediaPath: string, fileName: string): Promise<InboxActionResult> {
+  const loaded = await loadConversationForReply(conversationId);
+  if (!loaded.ok) return { error: loaded.error };
+  const { conversation, accessToken, userId } = loaded;
+
+  const service = createServiceRoleClient();
+  // Unlike the image reply's signed URL (only needs to live long enough for
+  // LINE's server to fetch it once, right away), this URL is the actual
+  // thing the customer clicks — possibly days later — so it needs a much
+  // longer expiry: 7 days, not the image path's 1 hour.
+  const { data: signed, error: signError } = await service.storage
+    .from("line-media")
+    .createSignedUrl(mediaPath, 60 * 60 * 24 * 7);
+
+  if (signError || !signed) return { error: "storage_failed" };
+
+  const sent = await pushMessage(accessToken, conversation.line_user_id, [
+    { type: "text", text: `📎 ${fileName}\n${signed.signedUrl}` },
+  ]);
+  if (!sent.ok) return { error: "line_api_failed" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("record_outbound_message", {
+    p_conversation_id: conversationId,
+    p_type: "file",
+    p_content: fileName,
+    p_media_path: mediaPath,
+    p_sent_by: userId,
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath("/app/inbox");
+  return { error: null };
+}
+
 export async function assignConversationAction(
   conversationId: string,
   assignedTo: string | null,

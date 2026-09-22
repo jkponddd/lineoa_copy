@@ -679,3 +679,27 @@ Closes out the remaining nav items from the Step 1 scaffold that had no page beh
 - "ตั้งค่าระบบ" (Settings) nav item still has no page — explicitly deferred, not scoped.
 - Roles page is read-only reference content; there's no way to define *custom* roles or change what a role can do (would be a much bigger feature).
 - Everything else carried over: Inbox message types beyond sticker/file, outbound sticker/file replies, `database.types.ts` regeneration, real end-to-end LINE OA verification.
+
+---
+
+## 2026-09-22 (continued) — Phase 1, Step 17: Outbound file replies in Inbox
+
+**A platform limitation caught before writing any code, not after**: LINE's Messaging API has no message object type for a bot to send a file attachment back to a user — the full set of outbound message types is text, sticker, image, video, audio, location, imagemap, template, and flex. A bot can *receive* a file (built in Step 15) but can never push one the way it can push an image. Flagged this to the user before building anything; agreed approach: send it as an ordinary text message containing the filename and a download link, not a native attachment.
+
+**What was built**
+
+- No migration — reuses the `'file'` message type and `messages` schema from Step 15 exactly as-is (that step already anticipated outbound use by keeping the check constraint direction-agnostic).
+- `sendFileReply(conversationId, mediaPath, fileName)` in `inbox/actions.ts` — generates a **7-day** signed Storage URL (not the 1-hour one `sendImageReply` uses): the image URL only needs to survive one immediate fetch by LINE's own server, but a file link is something the customer might actually click days later, so it needs to stay valid that long. Pushes a text message (`📎 {fileName}\n{url}`), and only calls `record_outbound_message` (with `p_type: "file"`) *after* that push succeeds — same "never record what didn't actually happen" rule as every other outbound path in this project.
+- `ReplyComposer` gained a second attach button (paperclip icon) alongside the existing image one, with its own upload handler and a separate "uploading file..." status state.
+
+**Verified against the live database and a live dev server**
+
+- Script-level: `record_outbound_message` accepts `p_type: 'file'` with content+media_path; a real 7-day signed URL was generated for an uploaded object and actually served it (`200`) when fetched.
+- Full real UI flow: seeded a conversation via the real webhook, opened the thread, confirmed the new attach-file button is present, selected a real local file through the actual file picker. The upload to Storage succeeded (client-side, independent of LINE); the subsequent push to LINE's API correctly failed (fake channel credentials, same as every other outbound test in this project) and showed the expected error. **Confirmed directly in the database afterward that this left zero outbound message rows** — proving the "record only after a successful push" rule held for this new path too, not just assumed from reading the code. Leftover uploaded (but never-sent) Storage object cleaned up along with everything else.
+- Zero console/page errors. `next build`, `tsc --noEmit`, `eslint` clean. Test data cleaned up; confirmed test accounts unchanged.
+
+**Open items / not built yet**
+
+- Outbound stickers still not supported (would need a sticker picker UI backed by a known valid packageId/stickerId list — LINE doesn't let a bot send arbitrary sticker IDs, only ones from packages available to that channel).
+- The file's signed link expires after 7 days; there's no mechanism to regenerate/re-share an expired one from the UI.
+- Remaining open items across the whole project unchanged: "ตั้งค่าระบบ" page, `database.types.ts` regeneration, real end-to-end LINE OA verification.
