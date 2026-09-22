@@ -116,5 +116,20 @@
     "userNotFound": "No account found for that email. The person needs to sign up before they can be added.",
     "alreadyMember": "That email is already a member of this organization.",
     "lastOwnerError": "You can't remove or change the role of the organization's last owner."
+  },
+  "inbox": {
+    "title": "Inbox",
+    "empty": "No conversations yet.",
+    "unknownUser": "LINE user",
+    "unassigned": "Unassigned",
+    "assignLabel": "Assign to",
+    "backToList": "Back to list",
+    "composerPlaceholder": "Type a message...",
+    "sendButton": "Send",
+    "attachImage": "Attach image",
+    "noMessages": "No messages in this conversation yet.",
+    "sendError": "Failed to send. Please try again.",
+    "imageAlt": "Image",
+    "uploadingImage": "Uploading image..."
   }
 }

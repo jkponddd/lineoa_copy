@@ -19,6 +19,16 @@ export type LineWebhookBody = {
   events: LineWebhookEvent[];
 };
 
+// The subset of a "message" event's payload the Inbox feature actually
+// consumes. Other message subtypes (video/audio/file/location/sticker)
+// come through with this same shape but aren't persisted yet — narrowed to
+// "text" | "image" by the webhook handler before use.
+export type LineMessageEvent = LineWebhookEvent & {
+  type: "message";
+  source: { type: string; userId: string };
+  message: { id: string; type: string; text?: string };
+};
+
 // Message objects sent TO LINE (reply/push). Text is the only variant
 // typed explicitly — richer types (image, flex, template, etc.) can be
 // added when a feature actually needs them; the index signature lets a

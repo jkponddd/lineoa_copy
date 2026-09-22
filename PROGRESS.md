@@ -318,3 +318,47 @@ Scope confirmed with user beforehand: manage members of the *current* org only (
 - The "Reset Password" email template update from the previous step — still pending on the user.
 - Inbox feature.
 - Regenerate `database.types.ts` from the live project once the CLI is linked.
+
+---
+
+## 2026-09-22 — Phase 1, Step 7: Inbox (view/reply to LINE messages)
+
+Scope confirmed via AskUserQuestion first (per CLAUDE.md rule 3, since this spans DB schema + webhook + realtime + storage): full conversation history (not just latest-in), text + image messages, assignment to an agent from day one. See [[0004-inbox-schema]] for the schema reasoning.
+
+**What was built**
+
+- Two new migrations, applied and verified live:
+  - `20260922000000_inbox.sql` — `conversations` + `messages` tables, both RLS-protected and `organization_id`-scoped; `assign_conversation`, `record_outbound_message`, `upsert_conversation_for_webhook`, `insert_inbound_message` (SECURITY DEFINER functions — no direct table writes from any client, same pattern as `line_channels`); a `touch_conversation_on_message` trigger keeps `conversations.last_message_at` in sync for list sorting; adds both tables to the `supabase_realtime` publication.
+  - `20260922010000_line_media_storage.sql` — private `line-media` Storage bucket + RLS policies scoped by the `{organization_id}/...` path prefix (via `storage.foldername`), reusing `is_org_member()`.
+- LINE API helpers: `get-profile.ts` (fetch a LINE user's display name/picture for a new conversation), `get-message-content.ts` (download inbound image bytes from LINE's Content API — note the different `api-data.line.me` host).
+- Webhook handler (`src/app/api/line/webhook/route.ts`) now actually processes `message` events (text/image only — other subtypes silently skipped for now): upserts the conversation, downloads+stores image bytes for image messages, inserts the message row. Previously it only verified and logged.
+- Inbox UI under `(app)/app/inbox/`:
+  - `page.tsx` — conversation list, sorted by `last_message_at`, with a last-message preview and an assignee badge.
+  - `[conversationId]/page.tsx` — thread view: header (avatar, name, back button on mobile, `AssignSelect`), scrollable message history (`MessageThread`, auto-scrolls to newest), `ReplyComposer` (text + image attach, Enter to send/Shift+Enter for newline).
+  - `RealtimeRefresh` client component — subscribes to `postgres_changes` on `conversations`/`messages` (via the signed-in user's own session, so RLS gates what they receive) and calls `router.refresh()`; used on both the list and thread pages instead of hand-rolled client-side state merging.
+  - Outbound sends go through `pushMessage` (LINE push API — no reply token available from a UI-triggered send, since reply tokens are single-use and tied to the original webhook event) and are only recorded in the DB *after* the LINE API call succeeds.
+  - Outbound images: the agent's browser uploads directly to the `line-media` bucket (covered by its own `authenticated` insert policy), then a server action generates a signed URL (service role) for LINE to fetch the image from and pushes it.
+  - `/app` now redirects to `/app/inbox` (was a placeholder page; the nav's primary action already pointed at `/app/inbox`).
+- Added shadcn `textarea`, `scroll-area` components.
+- New `inbox` translation namespace in both `th.json`/`en.json`.
+
+**Bug found and fixed during this step, not by inspection**
+
+The inbox list's assignee `Badge` clipped its text from the wrong side with no ellipsis on mobile (e.g. `agent@example.com` rendered as `ent@example.co`), caught by actually looking at a mobile screenshot, not by reading the component. Root cause: `Badge` is `inline-flex ... justify-center`, and CSS `text-overflow: ellipsis` doesn't produce a trailing "…" on a flex container with centered content — instead the centering just clips both ends symmetrically once the fixed-width parent's content overflows. Fixed by moving `truncate` onto a plain `<span>` child instead of the flex `Badge` itself, so the ellipsis logic runs on ordinary block-level text truncation. Also shortened the list row's timestamp from a full date+time to just time (`toLocaleTimeString`) and gave the display name its own full-width line — the original three-way flex row (name / full date / badge) left almost no room for the name on a 390px screen even before the badge bug.
+
+**Verified against the live database and a live dev server**
+
+- Both migrations applied via SQL Editor, no errors.
+- A Node script using the service-role key, plus a real signed webhook POST against the running dev server (HMAC-SHA256 over a fake channel secret, same as LINE would send), exercised the whole path end to end: conversation + inbound message correctly persisted with the right `organization_id` (PASS); a retried webhook delivery (same `line_message_id`) does not create a duplicate (PASS); a bad signature is rejected with 401 (PASS); the organization's own member can `select` the conversation via RLS, an anonymous session sees zero rows (PASS); `assign_conversation` succeeds for an in-org agent, succeeds for unassigning, and is rejected for a user who isn't a member of the organization (PASS); `record_outbound_message` succeeds and the `last_message_at` trigger stays in sync (PASS); Storage — the owner can upload under their own `{organization_id}/...` path and generate a signed URL, an anonymous session cannot list that org's media, and uploading under a *different* organization's path is rejected by RLS (PASS, all of it).
+- Full UI flow driven with a headless browser (logged in as the real `owner@example.com` test account): the inbox list shows a seeded conversation's preview text and last-message time; opening it shows the full message history; the assign dropdown successfully reassigns to the agent test account (confirmed persisted across a second, separate browser session); attempting to send a text reply fails gracefully with the expected on-screen error (there's no real LINE channel behind the test channel's fake access token, so the actual push call to LINE's API correctly fails rather than the page crashing); mobile viewport shows the back-to-list button and bottom nav; dark mode renders correctly with no hardcoded colors. Zero unexpected browser console/page errors across all sessions.
+- All seeded test data (fake LINE channel, conversation, messages, uploaded storage object) cleaned up afterward and confirmed gone.
+- What's still **not** verified: an actual image message arriving from a real LINE user (the webhook's image-download path was exercised in code review but not with real LINE-hosted image bytes), and an outbound reply actually reaching a real LINE client — both need a real connected LINE Official Account, same caveat as the webhook step itself.
+- `next build`, `tsc --noEmit`, `eslint` all clean (re-checked after the badge fix too).
+
+**Open items / not built yet**
+
+- Conversation `status` (open/closed) has a column + enum but no UI to change it yet.
+- Message types beyond text/image (video, audio, file, sticker, location) arrive through the webhook but are currently silently ignored.
+- Read/delivery receipts.
+- Real end-to-end verification (image messages, outbound push) once a real LINE Official Account is connected.
+- Full invite-by-email flow, email template update, `database.types.ts` regeneration — carried over from the previous step.

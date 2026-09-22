@@ -9,6 +9,9 @@
 // query resolve to `never` instead.
 
 export type OrgRole = "owner" | "agent" | "analyst";
+export type MessageDirection = "inbound" | "outbound";
+export type MessageType = "text" | "image";
+export type ConversationStatus = "open" | "closed";
 
 export type Database = {
   public: {
@@ -111,6 +114,45 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
+      conversations: {
+        Row: {
+          id: string;
+          organization_id: string;
+          line_channel_id: string;
+          line_user_id: string;
+          display_name: string | null;
+          picture_url: string | null;
+          status: ConversationStatus;
+          assigned_to: string | null;
+          last_message_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        // No direct insert: rows are only ever created by
+        // record_inbound_message() (service role, from the webhook).
+        Insert: never;
+        Update: { status?: ConversationStatus };
+        Relationships: [];
+      };
+      messages: {
+        Row: {
+          id: string;
+          organization_id: string;
+          conversation_id: string;
+          direction: MessageDirection;
+          type: MessageType;
+          content: string | null;
+          media_path: string | null;
+          line_message_id: string | null;
+          sent_by: string | null;
+          created_at: string;
+        };
+        // No direct insert: rows are only ever created by
+        // record_inbound_message() / record_outbound_message().
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -151,6 +193,39 @@ export type Database = {
           full_name: string | null;
           created_at: string;
         }[];
+      };
+      assign_conversation: {
+        Args: { p_conversation_id: string; p_assigned_to: string | null };
+        Returns: Database["public"]["Tables"]["conversations"]["Row"];
+      };
+      record_outbound_message: {
+        Args: {
+          p_conversation_id: string;
+          p_type: MessageType;
+          p_content: string | null;
+          p_media_path: string | null;
+          p_sent_by: string | null;
+        };
+        Returns: Database["public"]["Tables"]["messages"]["Row"];
+      };
+      upsert_conversation_for_webhook: {
+        Args: {
+          p_bot_user_id: string;
+          p_line_user_id: string;
+          p_display_name: string | null;
+          p_picture_url: string | null;
+        };
+        Returns: Database["public"]["Tables"]["conversations"]["Row"];
+      };
+      insert_inbound_message: {
+        Args: {
+          p_conversation_id: string;
+          p_type: MessageType;
+          p_content: string | null;
+          p_media_path: string | null;
+          p_line_message_id: string | null;
+        };
+        Returns: Database["public"]["Tables"]["messages"]["Row"];
       };
     };
   };

@@ -14,3 +14,19 @@ export async function getLineChannelAccessToken(lineChannelId: string): Promise<
 
   return data[0].channel_access_token;
 }
+
+// Same lookup, but keyed by line_channels.id (the uuid conversations.line_channel_id
+// points at) rather than LINE's own numeric Channel ID — the shape the
+// Inbox's reply actions have on hand.
+export async function getLineChannelAccessTokenByChannelUuid(lineChannelUuid: string): Promise<string | null> {
+  const supabase = createServiceRoleClient();
+  const { data: channel } = await supabase
+    .from("line_channels")
+    .select("line_channel_id")
+    .eq("id", lineChannelUuid)
+    .single();
+
+  if (!channel) return null;
+
+  return getLineChannelAccessToken(channel.line_channel_id);
+}
