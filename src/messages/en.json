@@ -165,5 +165,23 @@
     "nameRequired": "Organization name is required.",
     "saveButton": "Save",
     "saved": "Saved"
+  },
+  "reports": {
+    "title": "Reports",
+    "description": "Overview of conversations and messages in this organization.",
+    "statTotalConversations": "Total conversations",
+    "statOpenConversations": "Open",
+    "statClosedConversations": "Closed",
+    "statTotalMessages": "Total messages",
+    "chartTitle": "Messages per day (last 14 days)",
+    "chartInbound": "Inbound",
+    "chartOutbound": "Outbound",
+    "chartViewToggleTable": "View as table",
+    "chartViewToggleChart": "View as chart",
+    "chartTableDate": "Date",
+    "topAgentsTitle": "Top agents by messages sent",
+    "topAgentsEmpty": "No outbound messages yet.",
+    "tableAgent": "Agent",
+    "tableMessagesSent": "Messages sent"
   }
 }

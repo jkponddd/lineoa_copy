@@ -432,3 +432,33 @@ Scope picked via AskUserQuestion from the remaining big items (Broadcast / Repor
 - No image cropping/resizing on upload — whatever the browser sends is stored as-is.
 - Slug is not editable from this page (would need to think through what happens to anything keyed by the old slug first).
 - Everything carried over from Steps 6–8.
+
+---
+
+## 2026-09-22 (continued) — Phase 1, Step 10: Reports/Analytics
+
+Scope picked via AskUserQuestion from the last two big remaining items (Broadcast / Reports) — chosen because it reads existing Inbox data rather than needing a real LINE OA to test end-to-end. Lives at `/app/reports` (User App, not Admin — matches CLAUDE.md's product description, and the nav item/href already existed from the Step 1 scaffold).
+
+**What was built**
+
+- No migration — every query reads existing `conversations`/`messages` tables the signed-in member already has RLS access to, plus the existing `get_organization_members` RPC for name resolution.
+- Stat tiles: total conversations, open, closed, total messages.
+- `MessagesChart` — a grouped bar chart (inbound vs. outbound, last 14 days), built as the first real chart in the app. Loaded the **dataviz skill** before writing it and followed its procedure: swapped the shadcn scaffold's placeholder `--chart-1`..`--chart-5` (previously plain grayscale, no hue at all) for the skill's validated categorical palette, ran `validate_palette.js` for both light and dark against the actual series pair before using it (all checks passed — CVD ΔE 24.7/26.8, well clear of the ≥8 floor), then followed the mark specs: bars capped at 24px with a 4px rounded data-end, a 2px gap between the two bars in a group, hairline gridlines, a legend (required for 2+ series), and a per-day hover/focus tooltip. No charting library added — plain HTML/CSS bars, since two fixed series over 14 points didn't justify the dependency.
+- A **table view toggle** on the chart — the skill's required accessible fallback, so every value stays reachable without hovering.
+- "Top agents by messages sent" table, ranking org members by their outbound message count.
+- New `reports` translation namespace.
+
+**Verified against the live database and a live dev server**
+
+- Seeded 2 conversations (1 open, 1 closed) and 20 messages backdated across 5 days (mixing inbound/outbound, with `sent_by` set to both the owner and agent test accounts) directly via the service role, then compared the live page against hand-computed ground-truth counts queried straight from the database — all four stat tiles, the 14-day chart's bucketing (including the empty-day zeros), the table-view numbers, and the top-agents ranking matched exactly, not just "looked plausible."
+- Confirmed interaction: hovering a bar shows the correct tooltip (right date, right counts, right color key); the table-view toggle renders all 14 days.
+- Checked at desktop, mobile, and dark mode — the dark-stepped palette read correctly against the dark surface in a real screenshot, not just the validator's math.
+- `next build`, `tsc --noEmit`, `eslint` all clean.
+- All seeded test data removed afterward (conversations, messages, the fake LINE channel); confirmed `conversations`/`messages`/`audit_log` all back to empty and the three documented test accounts unchanged.
+
+**Open items / not built yet**
+
+- All aggregation happens by fetching rows and reducing in JS server-side (fine at current/test data volumes) rather than a dedicated SQL aggregation — would need a proper view/RPC if message volume grows large enough for this to matter.
+- No date-range filter yet (fixed at "last 14 days"); no per-channel or per-conversation-status breakdown.
+- Broadcast — the other remaining big item from this round, not started.
+- Everything else carried over from Steps 6–9.

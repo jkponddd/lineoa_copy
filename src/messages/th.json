@@ -165,5 +165,23 @@
     "nameRequired": "กรุณากรอกชื่อองค์กร",
     "saveButton": "บันทึก",
     "saved": "บันทึกแล้ว"
+  },
+  "reports": {
+    "title": "รายงาน",
+    "description": "ภาพรวมบทสนทนาและข้อความในองค์กรนี้",
+    "statTotalConversations": "บทสนทนาทั้งหมด",
+    "statOpenConversations": "กำลังเปิด",
+    "statClosedConversations": "ปิดแล้ว",
+    "statTotalMessages": "ข้อความทั้งหมด",
+    "chartTitle": "ข้อความต่อวัน (14 วันล่าสุด)",
+    "chartInbound": "ข้อความเข้า",
+    "chartOutbound": "ข้อความออก",
+    "chartViewToggleTable": "ดูแบบตาราง",
+    "chartViewToggleChart": "ดูแบบกราฟ",
+    "chartTableDate": "วันที่",
+    "topAgentsTitle": "เจ้าหน้าที่ที่ตอบมากที่สุด",
+    "topAgentsEmpty": "ยังไม่มีข้อความที่ส่งออก",
+    "tableAgent": "เจ้าหน้าที่",
+    "tableMessagesSent": "ข้อความที่ส่ง"
   }
 }
