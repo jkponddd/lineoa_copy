@@ -462,3 +462,34 @@ Scope picked via AskUserQuestion from the last two big remaining items (Broadcas
 - No date-range filter yet (fixed at "last 14 days"); no per-channel or per-conversation-status breakdown.
 - Broadcast — the other remaining big item from this round, not started.
 - Everything else carried over from Steps 6–9.
+
+---
+
+## 2026-09-22 (continued) — Phase 1, Step 11: Broadcast
+
+Last of the four items originally offered (Audit Log / Settings / Reports / Broadcast — all four now done). Lives at `/app/broadcast`, nav item already existed from the Step 1 scaffold.
+
+**Key design decision**
+
+Broadcast uses LINE's actual **Broadcast API** (`/v2/bot/message/broadcast`), not our own recipient list built from `conversations`. LINE itself fans the message out to every follower of the channel, including people who've added the OA but never messaged in — which is what "broadcast" means in this product's context, and avoids ever needing to manage a mailing-list-style recipient table ourselves.
+
+**What was built**
+
+- One new migration, applied and verified live: `20260922040000_broadcasts.sql` — `broadcasts` table (RLS: any org member can view; no insert policy — writes only go through `record_broadcast()`, following `record_outbound_message`'s established pattern of recording only *after* the LINE API call has already been attempted, so history reflects what actually happened, success or failure, never what the UI merely tried).
+- `broadcastMessage()` added to `src/lib/line/send-message.ts` alongside the existing `replyMessage`/`pushMessage` — same shape, no `to` field.
+- `/app/broadcast`: a channel picker (only shown if the org has a connected LINE channel; otherwise an empty state links to `/admin/line-channels`) + message composer with a confirm dialog (irreversible, sends to everyone — same destructive-action pattern as disconnect/remove elsewhere in the app) + a send history table (time, channel, message, sender, status badge, with the error message available via a title tooltip on a failed row).
+
+**Verified against the live database and a live dev server**
+
+- Migration applied via SQL Editor, no errors.
+- Script-level: `record_broadcast` succeeds for both `sent` and `failed` statuses and stores the error message correctly; an org member can read their organization's history; an anonymous session sees zero rows; a **direct insert into `broadcasts` bypassing `record_broadcast` is correctly rejected by RLS** (no insert policy exists on purpose); `record_broadcast` rejects an unknown `line_channel_id`.
+- Full real UI flow: selected a seeded test channel from the dropdown, composed a message, confirmed the send dialog, submitted. Since the test channel's LINE credentials are fake, the actual push to LINE's API correctly failed — the composer showed the expected error, and (this is the point of the test) **the attempt was still recorded in history with `status = failed` and the real error message**, exactly per the design above. Reloaded the page and confirmed the history table shows the right message content, channel name, sender, and a "failed" badge. Checked at desktop, mobile, and dark mode. Zero unexpected console/page errors.
+- What's still not verified: an actual successful broadcast reaching real LINE followers — needs a real connected LINE Official Account, same caveat as every other outbound LINE feature in this project (Inbox replies, images).
+- `next build`, `tsc --noEmit`, `eslint` all clean. All test data (fake channel, broadcast rows) cleaned up afterward; confirmed `broadcasts`/`conversations` empty again and the three documented test accounts unchanged.
+
+**Open items / not built yet**
+
+- Text messages only — no image/rich-content broadcasts (matches the same text+image-first decision made for Inbox, but broadcast images weren't built this round).
+- No scheduling (send now only) and no audience segmentation (LINE's Broadcast API itself doesn't support either — would need Multicast + our own recipient list to add this later, a bigger design change).
+- Real end-to-end delivery verification, still blocked on a real LINE Official Account.
+- This closes out the four items offered after Step 7 (Audit Log, Settings, Reports, Broadcast). Remaining bigger open items: message types beyond text/image in Inbox, invite-by-email, the Reset Password email template (user's own manual step), `database.types.ts` regeneration, and Rich Menu builder (the one User App feature from CLAUDE.md's original list not yet started).

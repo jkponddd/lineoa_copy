@@ -12,6 +12,7 @@ export type OrgRole = "owner" | "agent" | "analyst";
 export type MessageDirection = "inbound" | "outbound";
 export type MessageType = "text" | "image";
 export type ConversationStatus = "open" | "closed";
+export type BroadcastStatus = "sent" | "failed";
 
 export type Database = {
   public: {
@@ -155,6 +156,22 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
+      broadcasts: {
+        Row: {
+          id: string;
+          organization_id: string;
+          line_channel_id: string;
+          content: string;
+          status: BroadcastStatus;
+          error_message: string | null;
+          sent_by: string | null;
+          created_at: string;
+        };
+        // No direct insert: rows are only ever created by record_broadcast().
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -241,6 +258,16 @@ export type Database = {
           p_line_message_id: string | null;
         };
         Returns: Database["public"]["Tables"]["messages"]["Row"];
+      };
+      record_broadcast: {
+        Args: {
+          p_line_channel_id: string;
+          p_content: string;
+          p_status: BroadcastStatus;
+          p_error_message: string | null;
+          p_sent_by: string | null;
+        };
+        Returns: Database["public"]["Tables"]["broadcasts"]["Row"];
       };
     };
   };

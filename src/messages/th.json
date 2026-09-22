@@ -183,5 +183,28 @@
     "topAgentsEmpty": "ยังไม่มีข้อความที่ส่งออก",
     "tableAgent": "เจ้าหน้าที่",
     "tableMessagesSent": "ข้อความที่ส่ง"
+  },
+  "broadcast": {
+    "title": "ออกอากาศ",
+    "description": "ส่งข้อความไปยังผู้ติดตาม LINE OA ทุกคน",
+    "composerTitle": "ส่งข้อความใหม่",
+    "channelLabel": "Channel",
+    "messageLabel": "ข้อความ",
+    "messagePlaceholder": "พิมพ์ข้อความที่จะส่ง...",
+    "sendButton": "ส่งออกอากาศ",
+    "sendConfirm": "ยืนยันส่งข้อความนี้ไปยังผู้ติดตามทุกคนของ Channel นี้? การกระทำนี้ย้อนกลับไม่ได้",
+    "sendError": "ส่งไม่สำเร็จ กรุณาลองใหม่",
+    "sendSuccess": "ส่งข้อความสำเร็จ",
+    "noChannels": "ยังไม่มี LINE Channel ที่เชื่อมต่อ ต้องเชื่อมต่อก่อนจึงจะส่งออกอากาศได้",
+    "connectChannelLink": "ไปที่หน้าเชื่อมต่อ LINE Channel",
+    "historyTitle": "ประวัติการส่ง",
+    "historyEmpty": "ยังไม่มีประวัติการส่งออกอากาศ",
+    "tableTime": "เวลา",
+    "tableChannel": "Channel",
+    "tableMessage": "ข้อความ",
+    "tableSentBy": "ผู้ส่ง",
+    "tableStatus": "สถานะ",
+    "statusSent": "สำเร็จ",
+    "statusFailed": "ไม่สำเร็จ"
   }
 }

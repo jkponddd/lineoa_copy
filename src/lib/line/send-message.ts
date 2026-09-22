@@ -2,6 +2,7 @@ import type { LineMessage } from "./types";
 
 // https://developers.line.biz/en/reference/messaging-api/#send-reply-message
 // https://developers.line.biz/en/reference/messaging-api/#send-push-message
+// https://developers.line.biz/en/reference/messaging-api/#send-broadcast-message
 // Up to 5 message objects per request (LINE's documented limit) — not
 // enforced here; callers are expected to respect it, same as LINE's own
 // SDKs do.
@@ -9,7 +10,7 @@ import type { LineMessage } from "./types";
 export type LineApiResult = { ok: true } | { ok: false; status: number; error: string };
 
 async function callLineMessagingApi(
-  endpoint: "reply" | "push",
+  endpoint: "reply" | "push" | "broadcast",
   channelAccessToken: string,
   body: Record<string, unknown>,
 ): Promise<LineApiResult> {
@@ -38,4 +39,11 @@ export function replyMessage(
 
 export function pushMessage(channelAccessToken: string, to: string, messages: LineMessage[]): Promise<LineApiResult> {
   return callLineMessagingApi("push", channelAccessToken, { to, messages });
+}
+
+// No `to` field — this is the one endpoint LINE itself fans out to every
+// follower of the channel, which is exactly what "broadcast" means here
+// (not our own recipient list; see the Broadcast feature's migration).
+export function broadcastMessage(channelAccessToken: string, messages: LineMessage[]): Promise<LineApiResult> {
+  return callLineMessagingApi("broadcast", channelAccessToken, { messages });
 }

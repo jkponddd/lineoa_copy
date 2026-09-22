@@ -183,5 +183,28 @@
     "topAgentsEmpty": "No outbound messages yet.",
     "tableAgent": "Agent",
     "tableMessagesSent": "Messages sent"
+  },
+  "broadcast": {
+    "title": "Broadcast",
+    "description": "Send a message to every follower of your LINE OA.",
+    "composerTitle": "New message",
+    "channelLabel": "Channel",
+    "messageLabel": "Message",
+    "messagePlaceholder": "Type the message to send...",
+    "sendButton": "Send broadcast",
+    "sendConfirm": "Send this message to every follower of this channel? This can't be undone.",
+    "sendError": "Failed to send. Please try again.",
+    "sendSuccess": "Message sent.",
+    "noChannels": "No LINE channel connected yet. Connect one before sending a broadcast.",
+    "connectChannelLink": "Go to LINE Channels",
+    "historyTitle": "Send history",
+    "historyEmpty": "No broadcasts sent yet.",
+    "tableTime": "Time",
+    "tableChannel": "Channel",
+    "tableMessage": "Message",
+    "tableSentBy": "Sent by",
+    "tableStatus": "Status",
+    "statusSent": "Sent",
+    "statusFailed": "Failed"
   }
 }
