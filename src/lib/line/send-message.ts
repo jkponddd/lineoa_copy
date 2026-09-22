@@ -10,7 +10,7 @@ import type { LineMessage } from "./types";
 export type LineApiResult = { ok: true } | { ok: false; status: number; error: string };
 
 async function callLineMessagingApi(
-  endpoint: "reply" | "push" | "broadcast",
+  endpoint: "reply" | "push" | "broadcast" | "multicast",
   channelAccessToken: string,
   body: Record<string, unknown>,
 ): Promise<LineApiResult> {
@@ -46,4 +46,16 @@ export function pushMessage(channelAccessToken: string, to: string, messages: Li
 // (not our own recipient list; see the Broadcast feature's migration).
 export function broadcastMessage(channelAccessToken: string, messages: LineMessage[]): Promise<LineApiResult> {
   return callLineMessagingApi("broadcast", channelAccessToken, { messages });
+}
+
+// https://developers.line.biz/en/reference/messaging-api/#send-multicast-message
+// Our own recipient list (up to 500 userIds per call — LINE's documented
+// limit; batching across that limit is the caller's job, see
+// send-broadcast.ts), unlike broadcastMessage's "everyone" semantics.
+export function multicastMessage(
+  channelAccessToken: string,
+  to: string[],
+  messages: LineMessage[],
+): Promise<LineApiResult> {
+  return callLineMessagingApi("multicast", channelAccessToken, { to, messages });
 }

@@ -729,3 +729,40 @@ Last well-scoped, unblocked increment before everything remaining is either expl
 
 - The curated sticker set is small (8) and fixed in code — no way for an org to add their own or browse a larger catalog; a real product would eventually want this backed by whatever sticker packages the channel actually has, which needs infrastructure this template doesn't have.
 - Remaining open items across the whole project unchanged: "ตั้งค่าระบบ" page, `database.types.ts` regeneration, real end-to-end LINE OA verification.
+
+---
+
+## 2026-09-22 (continued) — Phase 1, Step 19: Broadcast — images, scheduled send, audience segmentation
+
+User asked to build Broadcast out "แบบเต็มระบบ" (the full system) after being offered a choice between three individual pieces (images / scheduling / segmentation) — took that as direction to build all three together rather than re-narrowing further, given how specific and decisive the request was.
+
+**What was built**
+
+- Two migrations, applied and verified live:
+  - `20260922090000_broadcast_status_enum.sql` — adds `'scheduled'`/`'sending'` to `broadcast_status`, its own migration for the usual enum-in-same-transaction reason.
+  - `20260922090100_broadcast_full_system.sql` — new `broadcast_audience` enum (`'all'` | `'conversations'`); `scheduled_at`, `audience`, `image_media_path` columns; `content` relaxed to nullable with a check constraint requiring at least one of content/image; `record_broadcast()`'s signature extended; new `cancel_scheduled_broadcast()`.
+- **Audience segmentation**: `'all'` keeps using LINE's Broadcast API (fans out to every follower, unchanged). New `'conversations'` option uses LINE's **Multicast API** instead, targeting the distinct `line_user_id`s already in that channel's own `conversations` table (people who've actually messaged in) — batched at 500 recipients per call, LINE's own multicast limit.
+- **Scheduled send**: composer gained a "send later" toggle + datetime picker. A scheduled broadcast is recorded with `status = 'scheduled'` and nothing is sent to LINE at submit time. A new route, **`/api/broadcasts/process-due`**, does the actual sending — designed to be triggered by an external scheduler (this is a serverless Next.js app with no persistent worker, and the template doesn't assume a specific host, so this is deliberately generic rather than assuming Vercel Cron specifically). Protected by a `CRON_SECRET` bearer token (checked via `Authorization` header — matching Vercel Cron's own convention of auto-sending that header — with a `?secret=` query param fallback for other schedulers). Documented in `.env.local.example`; **the user still needs to configure an actual scheduler** to call this route periodically — nothing in the app triggers it on its own.
+  - Race safety: the route claims each due broadcast (`status: 'scheduled' → 'sending'`, conditioned on still being `'scheduled'`) before processing it, so two overlapping invocations can't send the same broadcast twice.
+  - Org members can cancel a still-`'scheduled'` broadcast from the history table; once claimed or resolved, cancellation is rejected.
+- **Image broadcasts**: composer gained an optional image attach (mirroring Inbox's image reply — upload to `line-media`, resolved to a signed URL, sent as LINE's `image` message type), independent of the scheduling/audience choices. A broadcast can be text-only, image-only, or both (LINE allows multiple message objects per send).
+- `src/lib/broadcast/send-broadcast.ts` — the actual delivery logic (`performBroadcastSend`, `buildBroadcastMessages`) factored out into its own module specifically so the "send now" server action and the cron-triggered route can't drift apart on what a stored broadcast actually sends; both call the exact same functions.
+- History table extended with audience and scheduled-time columns, an image thumbnail, a `Cancel` button for scheduled rows, and four status states (scheduled/sending/sent/failed) instead of two.
+
+**A real logic bug caught and fixed before it ever ran, not live**: the composer's success message picked "scheduled" vs. "sent now" text based on the `scheduleEnabled` toggle state — but that same submit handler resets the toggle back to `false` right before showing the message, so the message would have always claimed "sent now" even after a successful *schedule*. Caught by re-reading the state-reset order while writing the component, not by testing; fixed by capturing the outcome in its own `sentState` (`"immediate" | "scheduled" | null`) set once, before the toggle reset touches anything.
+
+**Verified against the live database and a live dev server**
+
+- Both migrations applied via SQL Editor, no errors.
+- Script-level (12 checks): `record_broadcast` accepts the full new parameter set; an image-only broadcast (`content: null`) is accepted; a broadcast with **neither** content nor image is correctly rejected by the check constraint; a scheduled broadcast due in the past round-trips correctly.
+- **The cron route was exercised for real, not simulated**: called `/api/broadcasts/process-due` with no secret (401), the wrong secret (401), then the correct one — which actually claimed the due broadcast, called the real `performBroadcastSend` → real LINE API (failed as expected, fake channel credentials, same as every other outbound test in this project), and recorded `status = 'failed'` with LINE's real error message. **Confirmed a second run of the same route does not reprocess the now-resolved broadcast** — the claim mechanism actually works, not just reads correctly. Separately confirmed `cancel_scheduled_broadcast` succeeds for a future-dated scheduled broadcast, actually removes the row, and is rejected once a broadcast has already resolved.
+- Full real UI flow: switched audience to "conversations" and saw the multicast hint; attached a real image and saw the preview; enabled scheduling and picked a future time via the actual `datetime-local` picker; submitted and saw the scheduled-success message (not the wrong one — confirming the bug above stayed fixed); reloaded and confirmed the history table showed the scheduled time, correct audience label, and image thumbnail; cancelled it through the real Cancel button — the row disappeared from a fresh **direct database query** (one of the test script's own body-text assertions reported a false failure here from a revalidation-timing artifact, same category of test-script flakiness seen several times earlier this session; the database state was the source of truth and confirmed correct).
+- Checked for console/page errors throughout — none. `next build`, `tsc --noEmit`, `eslint` all clean.
+- All test data (fake channel, seeded conversations, broadcast rows) cleaned up afterward; confirmed empty tables and the three documented test accounts unchanged.
+
+**Open items / not built yet**
+
+- Nothing actually triggers `/api/broadcasts/process-due` yet — the user needs to set up an external scheduler (Vercel Cron Jobs or equivalent) pointed at it with `CRON_SECRET`, on whatever interval makes sense (e.g. every minute). Verified the route itself works correctly; the "something calls it on a schedule" half is infrastructure outside this app.
+- No timezone picker for the schedule time — uses whatever timezone the browser's `datetime-local` input and `Date` parsing resolve to.
+- Audience is a fixed choice between exactly two options (all vs. conversations) — no custom segments/tags, same limitation noted when segmentation was originally scoped out.
+- Real end-to-end delivery (either audience, scheduled or immediate) still needs a real connected LINE Official Account to verify beyond "the mechanics are proven and LINE's own API rejects our fake credentials correctly."
