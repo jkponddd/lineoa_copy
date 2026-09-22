@@ -562,3 +562,13 @@ User asked for three things right after Step 12 shipped, mid-review of the finis
 - No area-count limit warning in the UI before hitting LINE's hard cap of 20 (silently stops accepting new drawn areas past 20).
 - No handling for deleting a rich menu that other menus still reference via `richmenuswitch` — those areas would point at a dead alias. Acceptable edge case for now; would need either a reference check before delete or a "this menu is used as a switch target by N others" warning.
 - Everything else carried over from Step 12.
+
+---
+
+## 2026-09-22 (continued) — Bug fix: sidebar/bottom-nav active state didn't match nested routes
+
+User-reported: "sidebar active menu ไม่ตามกับ url path" (the sidebar's active item doesn't track the current URL). Both `SidebarNav` and `BottomNav` computed `active` with an exact match (`pathname === item.href`), so any nested route — the only one that exists today is `/app/inbox/[conversationId]`, the Inbox thread view — left every nav item unhighlighted while viewing it, since `/app/inbox/<uuid>` never equals `/app/inbox`.
+
+**Fix**: `active = pathname === item.href || pathname.startsWith(\`${item.href}/\`)` in both components. Checked that no current nav href is a prefix of another (e.g. `/admin/line-channels` isn't a prefix of any other admin route), so a plain prefix match is safe without needing a more careful segment-boundary check.
+
+**Verified live**: seeded a real conversation via the webhook, logged in, confirmed Inbox was active on both the list page and the nested thread page (previously only the former), confirmed a different nav item (Reports) correctly stayed inactive on the thread page, and confirmed the same fix holds on the mobile bottom nav. `next build`/`tsc`/`eslint` clean. Test data cleaned up afterward.

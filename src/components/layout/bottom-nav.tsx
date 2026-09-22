@@ -24,7 +24,7 @@ export function BottomNav({ navItems, primaryAction }: BottomNavProps) {
 
   const renderItem = (item: NavItem) => {
     const Icon = navIcons[item.icon];
-    const active = pathname === item.href;
+    const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
     return (
       <Link
         key={item.href}

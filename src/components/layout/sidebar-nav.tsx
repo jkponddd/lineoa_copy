@@ -36,7 +36,7 @@ export function SidebarNav({ sectionTitle, navItems, primaryAction }: SidebarNav
       <nav className="flex-1 space-y-1 px-4 py-6">
         {navItems.map((item) => {
           const Icon = navIcons[item.icon];
-          const active = pathname === item.href;
+          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
             <Link
               key={item.href}
