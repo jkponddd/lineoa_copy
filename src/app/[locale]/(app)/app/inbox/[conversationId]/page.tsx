@@ -7,9 +7,11 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentMembership } from "@/lib/supabase/get-current-membership";
 import { RealtimeRefresh } from "@/components/inbox/realtime-refresh";
 import { AssignSelect } from "@/components/inbox/assign-select";
+import { StatusToggle } from "@/components/inbox/status-toggle";
 import { MessageThread } from "@/components/inbox/message-thread";
 import { ReplyComposer } from "@/components/inbox/reply-composer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import type { ConversationStatus } from "@/lib/supabase/database.types";
 
 type MessageRow = {
   id: string;
@@ -31,7 +33,7 @@ export default async function InboxThreadPage({ params }: { params: Promise<{ co
   const [{ data: conversation }, { data: messages }, { data: members }] = await Promise.all([
     supabase
       .from("conversations")
-      .select("id, line_user_id, display_name, picture_url, assigned_to")
+      .select("id, line_user_id, display_name, picture_url, assigned_to, status")
       .eq("id", conversationId)
       .maybeSingle(),
     supabase
@@ -84,27 +86,38 @@ function ThreadHeader({
   conversation,
   members,
 }: {
-  conversation: { id: string; display_name: string | null; picture_url: string | null; assigned_to: string | null };
+  conversation: {
+    id: string;
+    display_name: string | null;
+    picture_url: string | null;
+    assigned_to: string | null;
+    status: ConversationStatus;
+  };
   members: { user_id: string; role: string; email: string; full_name: string | null }[];
 }) {
   const t = useTranslations("inbox");
   const name = conversation.display_name || t("unknownUser");
 
   return (
-    <div className="flex items-center gap-3 border-b pb-3">
-      <Link
-        href="/app/inbox"
-        className="text-muted-foreground hover:text-foreground lg:hidden"
-        aria-label={t("backToList")}
-      >
-        <ArrowLeft className="size-5" />
-      </Link>
-      <Avatar>
-        {conversation.picture_url ? <AvatarImage src={conversation.picture_url} alt={name} /> : null}
-        <AvatarFallback>{name.slice(0, 1).toUpperCase()}</AvatarFallback>
-      </Avatar>
-      <p className="min-w-0 flex-1 truncate font-medium">{name}</p>
-      <AssignSelect conversationId={conversation.id} assignedTo={conversation.assigned_to} members={members} />
+    <div className="flex flex-col gap-2 border-b pb-3">
+      <div className="flex items-center gap-3">
+        <Link
+          href="/app/inbox"
+          className="text-muted-foreground hover:text-foreground lg:hidden"
+          aria-label={t("backToList")}
+        >
+          <ArrowLeft className="size-5" />
+        </Link>
+        <Avatar>
+          {conversation.picture_url ? <AvatarImage src={conversation.picture_url} alt={name} /> : null}
+          <AvatarFallback>{name.slice(0, 1).toUpperCase()}</AvatarFallback>
+        </Avatar>
+        <p className="min-w-0 flex-1 truncate font-medium">{name}</p>
+      </div>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <AssignSelect conversationId={conversation.id} assignedTo={conversation.assigned_to} members={members} />
+        <StatusToggle conversationId={conversation.id} status={conversation.status} />
+      </div>
     </div>
   );
 }

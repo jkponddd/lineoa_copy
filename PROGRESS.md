@@ -357,8 +357,16 @@ The inbox list's assignee `Badge` clipped its text from the wrong side with no e
 
 **Open items / not built yet**
 
-- Conversation `status` (open/closed) has a column + enum but no UI to change it yet.
 - Message types beyond text/image (video, audio, file, sticker, location) arrive through the webhook but are currently silently ignored.
 - Read/delivery receipts.
 - Real end-to-end verification (image messages, outbound push) once a real LINE Official Account is connected.
 - Full invite-by-email flow, email template update, `database.types.ts` regeneration — carried over from the previous step.
+
+**Follow-up (same day): conversation status (open/closed) UI**
+
+No new migration needed — `conversations.status` and the `conversation_status` enum already existed from the Inbox migration above, and the existing "Members can update their organization's conversations" RLS policy already covered a plain status update, so `updateConversationStatusAction` is a direct `.update()` call rather than another SECURITY DEFINER function (unlike `assign_conversation`, there's no cross-row check needed here).
+
+- `StatusToggle` client component in the thread header — toggles between "ปิดบทสนทนา"/"เปิดใหม่" (close/reopen).
+- `ThreadHeader` restructured into two rows (name row, then assign+status row) — the original single-row layout had no room left once a second control was added on a 390px mobile viewport.
+- Inbox list: closed conversations render at reduced opacity with a small "ปิดแล้ว" badge next to the name.
+- Verified live: toggling closed/reopen actually persists and the button label flips; the list reflects the closed badge; checked at both desktop and mobile widths; `next build`/`tsc`/`eslint` clean; test data seeded and cleaned up the same way as the main Inbox verification.

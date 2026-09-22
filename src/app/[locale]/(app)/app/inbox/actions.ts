@@ -109,3 +109,19 @@ export async function assignConversationAction(
   revalidatePath("/app/inbox");
   return { error: null };
 }
+
+export async function updateConversationStatusAction(
+  conversationId: string,
+  status: "open" | "closed",
+): Promise<InboxActionResult> {
+  const supabase = await createClient();
+  // A plain RLS-checked update is enough here (unlike assign_conversation,
+  // there's no cross-row check to make) — the existing "Members can update
+  // their organization's conversations" policy already covers this.
+  const { error } = await supabase.from("conversations").update({ status }).eq("id", conversationId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/app/inbox");
+  return { error: null };
+}

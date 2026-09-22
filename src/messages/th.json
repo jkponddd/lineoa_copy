@@ -130,6 +130,10 @@
     "noMessages": "ยังไม่มีข้อความในบทสนทนานี้",
     "sendError": "ส่งข้อความไม่สำเร็จ กรุณาลองใหม่",
     "imageAlt": "รูปภาพ",
-    "uploadingImage": "กำลังส่งรูปภาพ..."
+    "uploadingImage": "กำลังส่งรูปภาพ...",
+    "closeConversation": "ปิดบทสนทนา",
+    "reopenConversation": "เปิดใหม่",
+    "statusClosed": "ปิดแล้ว",
+    "statusUpdateError": "เปลี่ยนสถานะไม่สำเร็จ กรุณาลองใหม่"
   }
 }

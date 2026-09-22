@@ -6,6 +6,8 @@ import { getCurrentMembership } from "@/lib/supabase/get-current-membership";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { RealtimeRefresh } from "@/components/inbox/realtime-refresh";
+import { cn } from "@/lib/utils";
+import type { ConversationStatus } from "@/lib/supabase/database.types";
 
 type ConversationRow = {
   id: string;
@@ -14,6 +16,7 @@ type ConversationRow = {
   picture_url: string | null;
   assigned_to: string | null;
   last_message_at: string;
+  status: ConversationStatus;
 };
 
 type PreviewRow = { conversation_id: string; type: "text" | "image"; content: string | null };
@@ -27,7 +30,7 @@ export default async function InboxListPage() {
   const [{ data: conversations }, { data: members }] = await Promise.all([
     supabase
       .from("conversations")
-      .select("id, line_user_id, display_name, picture_url, assigned_to, last_message_at")
+      .select("id, line_user_id, display_name, picture_url, assigned_to, last_message_at, status")
       .eq("organization_id", membership.organization.id)
       .order("last_message_at", { ascending: false })
       .returns<ConversationRow[]>(),
@@ -95,14 +98,24 @@ function InboxListView({
           <Link
             key={conversation.id}
             href={`/app/inbox/${conversation.id}`}
-            className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-accent"
+            className={cn(
+              "flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-accent",
+              conversation.status === "closed" && "opacity-60",
+            )}
           >
             <Avatar>
               {conversation.picture_url ? <AvatarImage src={conversation.picture_url} alt={name} /> : null}
               <AvatarFallback>{name.slice(0, 1).toUpperCase()}</AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
-              <p className="truncate font-medium">{name}</p>
+              <div className="flex items-center gap-1.5">
+                <p className="truncate font-medium">{name}</p>
+                {conversation.status === "closed" ? (
+                  <Badge variant="outline" className="shrink-0 text-[10px]">
+                    {t("statusClosed")}
+                  </Badge>
+                ) : null}
+              </div>
               <div className="flex items-center justify-between gap-2">
                 <p className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
                   {preview ? (preview.type === "image" ? t("imageAlt") : preview.content) : ""}
