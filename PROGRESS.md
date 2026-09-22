@@ -493,3 +493,72 @@ Broadcast uses LINE's actual **Broadcast API** (`/v2/bot/message/broadcast`), no
 - No scheduling (send now only) and no audience segmentation (LINE's Broadcast API itself doesn't support either — would need Multicast + our own recipient list to add this later, a bigger design change).
 - Real end-to-end delivery verification, still blocked on a real LINE Official Account.
 - This closes out the four items offered after Step 7 (Audit Log, Settings, Reports, Broadcast). Remaining bigger open items: message types beyond text/image in Inbox, invite-by-email, the Reset Password email template (user's own manual step), `database.types.ts` regeneration, and Rich Menu builder (the one User App feature from CLAUDE.md's original list not yet started).
+
+---
+
+## 2026-09-22 (continued) — Phase 1, Step 12: Rich Menu builder
+
+Last of CLAUDE.md's originally-listed User App features (Inbox, Reports, Broadcast, Rich Menu — all four now built). Scope confirmed via AskUserQuestion first: grid-template layouts only (no freeform drag-and-drop canvas), background image uploaded by the user (not generated in-app). Lives at `/app/rich-menu`, nav item already existed from the Step 1 scaffold.
+
+**What was built**
+
+- Two migrations, both applied and verified live (the second one a live-discovered fix, see below):
+  - `20260922050000_rich_menus.sql` — `rich_menus` table (RLS: members select; writes only through `record_rich_menu()` / `set_default_rich_menu()` / `delete_rich_menu_record()`, same "record what actually happened after calling LINE" pattern as `broadcasts`/`record_outbound_message`); a private `rich-menu-images` Storage bucket.
+  - `20260922051000_fix_rich_menu_image_delete_policy.sql` — see bug below.
+- `src/lib/line/rich-menu-layouts.ts` — the five layout templates (1x1, 2x1, 3x1, 2x2, 3x2), each a pure function from layout name to pixel bounds on a fixed 2500x1686 canvas (LINE's full-height rich menu size). Deliberately **not stored** in the database — computed identically on both the composer (for the visual grid preview) and the server action (for the actual LINE API payload), so there's one source of truth instead of two that could drift apart.
+- `src/lib/line/rich-menu.ts` — `createRichMenu`, `uploadRichMenuImage`, `setDefaultRichMenuOnLine`, `deleteRichMenuOnLine` (LINE's Rich Menu API).
+- `/app/rich-menu`: a composer (channel picker, layout picker with a live visual grid preview, image upload with **client-side pixel-dimension validation** against LINE's exact required size, then one label + action-type (message/URI) + action-value field per area) and a list of existing rich menus (image preview via a signed Storage URL, a "set as default" button, a delete button, a failed-creation badge with the error available on hover).
+- Creation is a three-step server action or nothing: create on LINE → upload the image to LINE → record the result. If the image upload fails after the rich menu was already created on LINE, the action **deletes it from LINE again** before recording `status = failed`, rather than leaving an orphaned empty rich menu registered there.
+
+**Two real bugs found live, not by inspection — both fixed**
+
+1. **Deleting a rich menu didn't actually remove its image from Storage.** `deleteRichMenuAction` calls `.remove()` on the `rich-menu-images` bucket after deleting the DB row, but the original migration only granted `SELECT` and `INSERT` policies — no `DELETE`. The call returned **no error** (RLS-filtered deletes affect zero rows silently, the same way an RLS-filtered `UPDATE` does — Storage's API doesn't treat "removed 0 of 1 requested objects" as a failure), so this was only caught by explicitly re-listing the bucket after a delete and finding the object still there, not by checking the action's return value. Fixed with `20260922051000` (a `DELETE` policy, same `is_org_member`-on-path-prefix pattern as the existing ones). Re-verified afterward: deleted a seeded rich menu through the real UI and confirmed via direct DB/Storage queries that **both** the row and the image were actually gone.
+2. (Caught before shipping, not live) A raw `switch` statement in `computeAreaBounds` was missing a closing brace before its `default` case — a straightforward syntax error, caught immediately by `tsc`.
+
+**Verified against the live database and a live dev server**
+
+- Both migrations applied via SQL Editor, no errors.
+- Script-level (14 checks): `record_rich_menu` succeeds for both `published` and `failed` status, storing `line_rich_menu_id = null` correctly on failure; the `areas` jsonb round-trips exactly; `set_default_rich_menu` correctly unsets every other rich menu on the same channel when a new one is marked default (confirmed with three menus, not just two, so "unset all others" was actually exercised); org members can select, anonymous sessions see zero rows, and a **direct insert bypassing `record_rich_menu` is rejected by RLS**; `delete_rich_menu_record` actually removes the row; Storage — upload/download work for an org member, anonymous sessions can't list the bucket.
+- Full real UI flow: selected a seeded channel, picked the 3x1 layout and confirmed exactly 3 area fields rendered (proving the picker actually drives area count, not just a static default); uploading a wrong-dimension image (an 800x600 real PNG, generated on the fly since no image-editing tool was available) showed the expected dimension error; uploading a correctly-sized 2500x1686 PNG showed a preview; filled in all 3 areas and submitted — since the test channel's LINE credentials are fake, LINE's real `createRichMenu` call correctly failed, and (matching the design) the attempt was still recorded with `status = failed`, visible in the list with the right name and a "creation failed" badge; deleted it through the real UI and confirmed (after the policy fix) both the row and the image were gone. Checked at desktop, mobile, and dark mode.
+- What's still not verified: an actual rich menu appearing on a real LINE user's device — needs a real connected LINE Official Account, same caveat as every other outbound LINE feature in this project.
+- `next build`, `tsc --noEmit`, `eslint` all clean. All test data (fake channels, rich menu rows, uploaded images) cleaned up afterward; confirmed `rich_menus`/`broadcasts`/`conversations` all empty and the three documented test accounts unchanged.
+
+**Open items / not built yet (at the time this step shipped)**
+
+- No freeform drag-and-drop layout (explicitly out of scope for this round, per the confirmed decision) — **added the same day, see the follow-up entry below.**
+- No "compact" 843px-height image size — every template uses the full 1686px height.
+- No image cropping/resizing in-app; the user's uploaded file must already be exactly the right pixel dimensions.
+- This closes out CLAUDE.md's originally-listed User App feature set (Inbox, Reports, Broadcast, Rich Menu). Remaining open items across the whole project: message types beyond text/image in Inbox, invite-by-email, the Reset Password email template (user's own manual step), `database.types.ts` regeneration, and real end-to-end LINE OA verification for every outbound feature (Inbox replies/images, Broadcast, Rich Menu) once a real LINE Official Account exists.
+
+---
+
+## 2026-09-22 (continued) — Phase 1, Step 13: Rich Menu — custom drag-and-drop layout, menu-switch action, and a popup layout picker
+
+User asked for three things right after Step 12 shipped, mid-review of the finished feature: (1) a genuinely custom area layout — not just the five grid templates — with drag/resize on a real preview; (2) a button action that switches the user to a *different* rich menu (LINE's own "tabs" mechanism); (3) turn the always-expanded layout grid into a popup, and make the live preview look like an actual phone/chat mockup rather than an abstract grid. Not scoped via AskUserQuestion first — the request was specific and decisive ("อยากให้เพิ่ม feature นี้ไปเลย" / "want you to add this feature, go ahead"), so treated as direction to execute rather than another round of scope-narrowing.
+
+**What was built**
+
+- Two more migrations, both applied and verified live:
+  - `20260922060000_rich_menu_custom_layout_enum.sql` — adds the `'custom'` value to `rich_menu_layout`. Kept as its own migration on purpose: Postgres won't let a newly added enum value be referenced by a statement in the same transaction that added it.
+  - `20260922060100_rich_menu_switch_action.sql` — adds `rich_menus.line_rich_menu_alias_id`; replaces `record_rich_menu()`'s signature to accept an explicit `p_id` (so the caller can create the LINE-side alias — which needs *something* stable to reference — before the row itself exists) and `p_line_rich_menu_alias_id`.
+- **Custom layout**: `rich-menu-layouts.ts` reworked so every area (template or custom) is expressed the same way — bounds as 0-100 percentages, resolution-independent — via `computeTemplateAreaBoundsPercent()` for templates and free-form user input for custom. Percent bounds are only converted to real 2500x1686 pixels at the very last step, server-side (`percentToPixelBounds()`, clamped so drag/resize rounding error can never push an area outside the canvas, which LINE rejects).
+- **`RichMenuPhonePreview`** (new component) — a phone-shaped mockup with a fake chat area above the rich menu image, satisfying the "real mockup" request directly. In custom mode it **doubles as the area editor itself** rather than a separate non-visual form next to a separate static preview: drag empty canvas to draw a new area, drag a body to move it, drag the corner handle to resize, tap × to delete. Pointer events (not mouse events) so it works on touch too. In template mode the same component renders read-only, so what you see is what the *template* modes also actually look like — not just the custom one.
+- **`richmenuswitch` action type** — LINE's Rich Menu Alias mechanism (https://developers.line.biz/en/reference/messaging-api/#rich-menu-alias). Every successfully published rich menu now gets an alias created right after its image upload (alias id = the row's own uuid, generated client-side in the server action *before* the row exists, exactly why `record_rich_menu` needed `p_id`). An area's "switch to another menu" target is chosen from a dropdown of that channel's other already-published menus (passed down per-channel from the page); the server action re-validates at submit time that the target is still published and on the *same* channel before resolving it to an alias id.
+- **`LayoutPickerDialog`** — the five templates + "custom" moved into a popup (shadcn `Dialog`, newly added to the project) instead of an always-expanded 6-option grid, addressing the "save vertical space" request directly. The trigger shows a small live thumbnail of the current selection.
+- Full 3-step-or-nothing rollback on create, extended: create on LINE → upload image → **create the alias** — if the alias step fails after the menu was already created and imaged on LINE, the menu is deleted from LINE again before recording `status = failed`, so a failure never leaves a half-registered menu with no way to reference it.
+- `deleteRichMenuAction` now also deletes the LINE-side alias (best-effort) before deleting the rich menu itself.
+
+**Verified against the live database and a live dev server**
+
+- Both migrations applied via SQL Editor; confirmed applied by calling `record_rich_menu` with the new signature and `p_layout: 'custom'` and getting a business-logic error ("LINE channel not found") rather than a schema/signature error.
+- Script-level: `record_rich_menu` accepts an explicit `p_id` and custom percent bounds, storing `line_rich_menu_alias_id` correctly (the `areas` jsonb "round-trip" check initially reported a mismatch — turned out to be Postgres jsonb reordering object keys, not a data problem; verified the actual values field-by-field and they matched exactly); a `richmenuswitch` area referencing another menu round-trips its target id correctly.
+- Full real UI flow, driven with real pointer-drag gestures (not just filled form fields): opened the layout popup, confirmed it's a real dialog that closes on selection; uploaded a valid 2500x1686 image; **drew two areas by dragging on the live phone preview** and confirmed each drag produced exactly one new area field; set the second area's action to "switch to another menu" and confirmed the target dropdown correctly listed a pre-seeded published menu on the same channel; submitted. Since the test channel's LINE credentials are fake, the real `createRichMenu` call correctly failed with LINE's actual auth-error response — and **the resulting database row was inspected directly**, confirming: `layout = 'custom'`, both areas' bounds matched the actual dragged rectangles (e.g. ~10-50%/~10-50% and ~55-90%/~10-90%, matching the drag coordinates used), the second area's `action_value` was correctly resolved to the target menu's real row id, and `status = 'failed'` with LINE's real error message — proving the entire pipeline (drag → percent bounds → server resolution → real LINE API call → correct failure recording) end to end, not just that individual pieces work in isolation.
+- Two dead-end test-script selector bugs along the way (picking the wrong `<select>` by index, and matching the wrong `aspect-[2500/1686]` element when more than one was on the page) were found to be exactly that — test-script mistakes, confirmed by checking the underlying DOM/DB state directly — not product bugs. Added a `data-testid="rich-menu-canvas"` to the preview's interactive surface to make it reliably selectable, which is a reasonable thing to leave in the codebase.
+- Checked at desktop, mobile (the preview reflows below the form, as expected in a single-column layout), and confirmed no unexpected console/page errors.
+- `next build`, `tsc --noEmit`, `eslint` all clean. All test data (fake channels, rich menu rows, uploaded images) cleaned up afterward; confirmed empty tables and unchanged test accounts.
+
+**Open items / not built yet**
+
+- No area-count limit warning in the UI before hitting LINE's hard cap of 20 (silently stops accepting new drawn areas past 20).
+- No handling for deleting a rich menu that other menus still reference via `richmenuswitch` — those areas would point at a dead alias. Acceptable edge case for now; would need either a reference check before delete or a "this menu is used as a switch target by N others" warning.
+- Everything else carried over from Step 12.

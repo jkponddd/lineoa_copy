@@ -13,6 +13,21 @@ export type MessageDirection = "inbound" | "outbound";
 export type MessageType = "text" | "image";
 export type ConversationStatus = "open" | "closed";
 export type BroadcastStatus = "sent" | "failed";
+export type RichMenuLayout = "1x1" | "2x1" | "3x1" | "2x2" | "3x2" | "custom";
+export type RichMenuStatus = "published" | "failed";
+export type RichMenuActionType = "message" | "uri" | "richmenuswitch";
+// `bounds` is only present when the parent rich menu's layout is "custom" —
+// percentages (0-100) of the canvas, resolved to actual 2500x1686 pixels
+// only when building the LINE API payload. Absent for template layouts,
+// whose bounds are computed from `layout` instead (computeAreaBounds()).
+export type RichMenuAreaData = {
+  label: string;
+  action_type: RichMenuActionType;
+  // For "message"/"uri": the text/URL. For "richmenuswitch": the target
+  // rich_menus.id (this app's own uuid, not a LINE id).
+  action_value: string;
+  bounds?: { x: number; y: number; width: number; height: number };
+};
 
 export type Database = {
   public: {
@@ -172,6 +187,31 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
+      rich_menus: {
+        Row: {
+          id: string;
+          organization_id: string;
+          line_channel_id: string;
+          name: string;
+          layout: RichMenuLayout;
+          image_path: string;
+          areas: RichMenuAreaData[];
+          line_rich_menu_id: string | null;
+          line_rich_menu_alias_id: string | null;
+          is_default: boolean;
+          status: RichMenuStatus;
+          error_message: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        // No direct insert/update: rows are only ever created by
+        // record_rich_menu(), toggled by set_default_rich_menu(), and
+        // removed by delete_rich_menu_record().
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -268,6 +308,30 @@ export type Database = {
           p_sent_by: string | null;
         };
         Returns: Database["public"]["Tables"]["broadcasts"]["Row"];
+      };
+      record_rich_menu: {
+        Args: {
+          p_id: string | null;
+          p_line_channel_id: string;
+          p_name: string;
+          p_layout: RichMenuLayout;
+          p_image_path: string;
+          p_areas: RichMenuAreaData[];
+          p_line_rich_menu_id: string | null;
+          p_line_rich_menu_alias_id: string | null;
+          p_status: RichMenuStatus;
+          p_error_message: string | null;
+          p_created_by: string | null;
+        };
+        Returns: Database["public"]["Tables"]["rich_menus"]["Row"];
+      };
+      set_default_rich_menu: {
+        Args: { p_rich_menu_id: string };
+        Returns: Database["public"]["Tables"]["rich_menus"]["Row"];
+      };
+      delete_rich_menu_record: {
+        Args: { p_rich_menu_id: string };
+        Returns: undefined;
       };
     };
   };
