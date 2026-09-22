@@ -1,0 +1,16 @@
+-- Superseding the previous fix attempt: adding an explicit WITH CHECK to
+-- the UPDATE policy did NOT actually fix the upsert failure. Verified live
+-- that `upsert: true` was rejected by RLS even on a path with no existing
+-- object — i.e. the failure wasn't really about updating an existing row
+-- at all. Postgres's INSERT ... ON CONFLICT DO UPDATE requires an
+-- applicable UPDATE policy to be structurally satisfiable for the
+-- statement to be planned at all, independent of whether any row actually
+-- conflicts — a known RLS + upsert interaction, not something fixable by
+-- tweaking the USING/WITH CHECK quals themselves.
+--
+-- Sidestepping it entirely: logos now use a unique filename per upload
+-- (crypto.randomUUID(), same convention as line-media) instead of a fixed
+-- "logo.png" that relies on upsert to overwrite. Every write is then a
+-- plain INSERT — the one code path already proven to work correctly — and
+-- the UPDATE policy is no longer needed.
+drop policy "Owners can replace their organization's logo" on storage.objects;

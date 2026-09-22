@@ -398,3 +398,37 @@ Scope picked via AskUserQuestion from the remaining open items (Audit Log / Broa
 - The audit log table's mobile layout (horizontal scroll, no stacked-card alternative) — pre-existing pattern, not addressed here.
 - No pagination/filtering on the audit log yet (capped at the RPC's `p_limit` default of 200 rows).
 - Everything carried over from Steps 6–7 (message types beyond text/image, email template, invite-by-email, `database.types.ts` regeneration, real LINE OA verification).
+
+---
+
+## 2026-09-22 (continued) — Phase 1, Step 9: Organization Settings (name + logo)
+
+Scope picked via AskUserQuestion from the remaining big items (Broadcast / Reports / Settings) — chosen as the smallest and most contained. Uses the `/admin/organization` nav item that already existed in the Step 1 scaffold but had no page behind it yet.
+
+**What was built**
+
+- `organizations.logo_url` column and a public `org-logos` Storage bucket (unlike `line-media`, public rather than signed-URL — a logo is meant to be shown widely and isn't sensitive).
+- `updateOrganizationName` / `updateOrganizationLogo` server actions, both owner-gated and both logging to the audit log (`organization.renamed`, `organization.logo_updated`) — extending the Step 8 pattern to a third area of the app.
+- `/admin/organization` page: `OrganizationNameForm` (name field) and `OrganizationLogoUploader` (file picker → direct browser upload to Storage → server action persists the resulting public URL).
+- New `orgSettings` translation namespace; two new `auditLog` action labels for the organization events.
+
+**Two real bugs found live, not by inspection — both fixed**
+
+1. **RLS + `upsert: true` rejected everything, even the actual owner uploading to their own path.** The original design used a fixed `{organization_id}/logo.{ext}` path with `upsert: true` so a re-upload would overwrite the old logo, backed by an UPDATE policy mirroring `line-media`'s pattern. Verified live: the upload failed with "new row violates row-level security policy" — first suspected the UPDATE policy was missing an explicit `WITH CHECK` (migration `20260922031000`, applied, **did not fix it**), then isolated the real cause by testing a plain insert (worked) vs. `upsert: true` on a path with no existing row at all (still failed): Postgres's `INSERT ... ON CONFLICT DO UPDATE` requires an applicable UPDATE policy to be structurally satisfiable to plan the statement at all, independent of whether any row actually conflicts — not something fixable by adjusting the policy's quals. Fixed by dropping the upsert approach entirely (migration `20260922032000`): logos now use a unique filename per upload (`crypto.randomUUID()`, same convention as `line-media`), so every write is a plain INSERT — the one path already proven to work — and no UPDATE policy is needed. The tradeoff (old logo objects left orphaned in storage rather than deleted) was accepted as a reasonable simplification rather than adding a second, more complex write.
+2. **Base UI console warning on rename**: "A component is changing the default value state of an uncontrolled FieldControl after being initialized." After a successful rename, the parent Server Component re-fetches and passes a new `initialName` prop into the already-mounted `OrganizationNameForm` — an uncontrolled `Input`'s `defaultValue` only applies at mount, so React just updated the prop on the same instance instead of remounting. Fixed with `key={initialName}` on the `Input`, forcing a clean remount whenever the server-confirmed name actually changes.
+
+**Verified against the live database and a live dev server**
+
+- All three migrations applied via SQL Editor (the original + the two live-discovered fixes above).
+- Script-level: owner can rename (persists); a non-owner's rename attempt affects zero rows without erroring (RLS-blocked); owner can upload a logo and a second/replacement logo (both unique paths); a non-owner cannot upload a logo for this org; the logo is genuinely publicly readable with no auth; an owner cannot upload under an organization they don't own.
+- Full real UI flow: loaded the page with the real current name; renamed it through the form and saw the save confirmation; **reloaded the page to confirm the rename actually persisted server-side**, not just optimistic client state; uploaded a real (minimal valid) PNG through the file picker; the new logo appeared, pointed at the `org-logos` public bucket, and **survived a full reload**; an agent (non-owner) hitting `/admin/organization` directly is bounced to `/app` by the existing layout guard; zero unexpected console/page errors after the `key` fix (one was caught and fixed, as above).
+- Checked at desktop, mobile, and dark mode.
+- `next build`, `tsc --noEmit`, `eslint` all clean.
+- All test data cleaned up: organization name and logo restored to the documented `"My Organization"` / no logo; test Storage objects removed; synthetic `audit_log` rows cleared.
+
+**Open items / not built yet**
+
+- Old logo objects aren't deleted from Storage on replacement (accepted tradeoff, see above) — fine for now, would matter if logo changes become frequent at scale.
+- No image cropping/resizing on upload — whatever the browser sends is stored as-is.
+- Slug is not editable from this page (would need to think through what happens to anything keyed by the old slug first).
+- Everything carried over from Steps 6–8.

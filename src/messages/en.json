@@ -149,6 +149,21 @@
     "actionMemberRoleChanged": "Member role changed",
     "actionMemberRemoved": "Member removed",
     "actionLineChannelConnected": "LINE channel connected",
-    "actionLineChannelDisconnected": "LINE channel disconnected"
+    "actionLineChannelDisconnected": "LINE channel disconnected",
+    "actionOrganizationRenamed": "Organization renamed",
+    "actionOrganizationLogoUpdated": "Organization logo updated"
+  },
+  "orgSettings": {
+    "title": "Organization",
+    "description": "Manage this organization's name and logo.",
+    "logoTitle": "Logo",
+    "logoUploadButton": "Upload logo",
+    "logoUploading": "Uploading...",
+    "logoUploadError": "Failed to upload logo. Please try again.",
+    "nameTitle": "Organization name",
+    "nameLabel": "Organization name",
+    "nameRequired": "Organization name is required.",
+    "saveButton": "Save",
+    "saved": "Saved"
   }
 }

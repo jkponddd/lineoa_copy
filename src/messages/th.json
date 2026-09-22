@@ -149,6 +149,21 @@
     "actionMemberRoleChanged": "เปลี่ยนบทบาทสมาชิก",
     "actionMemberRemoved": "ลบสมาชิก",
     "actionLineChannelConnected": "เชื่อมต่อ LINE Channel",
-    "actionLineChannelDisconnected": "ยกเลิกการเชื่อมต่อ LINE Channel"
+    "actionLineChannelDisconnected": "ยกเลิกการเชื่อมต่อ LINE Channel",
+    "actionOrganizationRenamed": "เปลี่ยนชื่อองค์กร",
+    "actionOrganizationLogoUpdated": "เปลี่ยนโลโก้องค์กร"
+  },
+  "orgSettings": {
+    "title": "องค์กร",
+    "description": "จัดการชื่อและโลโก้ขององค์กรนี้",
+    "logoTitle": "โลโก้",
+    "logoUploadButton": "อัปโหลดโลโก้",
+    "logoUploading": "กำลังอัปโหลด...",
+    "logoUploadError": "อัปโหลดโลโก้ไม่สำเร็จ กรุณาลองใหม่",
+    "nameTitle": "ชื่อองค์กร",
+    "nameLabel": "ชื่อองค์กร",
+    "nameRequired": "กรุณากรอกชื่อองค์กร",
+    "saveButton": "บันทึก",
+    "saved": "บันทึกแล้ว"
   }
 }

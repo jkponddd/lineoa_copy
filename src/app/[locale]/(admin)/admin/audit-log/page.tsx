@@ -20,6 +20,8 @@ const ACTION_LABEL_KEYS: Record<string, string> = {
   "member.removed": "actionMemberRemoved",
   "line_channel.connected": "actionLineChannelConnected",
   "line_channel.disconnected": "actionLineChannelDisconnected",
+  "organization.renamed": "actionOrganizationRenamed",
+  "organization.logo_updated": "actionOrganizationLogoUpdated",
 };
 
 export default async function AuditLogPage() {
