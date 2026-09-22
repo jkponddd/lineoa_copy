@@ -623,3 +623,31 @@ Explicitly scoped out of Step 6 ("Full invite-by-email flow... explicitly out of
 - No way to resend or revoke an invite from the UI (would need to look the user up and call `inviteUserByEmail` again, or `admin.deleteUser`, neither wired up yet).
 - Real email delivery is blocked on configuring custom SMTP for this Supabase project — same category of external dependency as the still-pending Reset Password email template edit from Step 5, not something fixable from application code.
 - Remaining open items across the whole project: message types beyond text/image, Roles/Billing/Settings admin pages (nav items exist, no pages behind them), `database.types.ts` regeneration, and real end-to-end LINE OA verification.
+
+---
+
+## 2026-09-22 (continued) — Phase 1, Step 15: Inbox message types — sticker and file
+
+Picked via AskUserQuestion over the remaining Roles/Billing/Settings placeholder pages, as the more substantial piece. Extends Inbox beyond text/image (video, audio, and location remain out of scope, unchanged).
+
+**What was built**
+
+- Two migrations, applied and verified live: `20260922080000_inbox_more_message_types_enum.sql` (adds `'sticker'`/`'file'` to `message_type`, its own migration for the usual enum-in-same-transaction reason) and `20260922080100_inbox_more_message_types.sql` (updates the `messages_content_or_media` check constraint to cover both new types).
+- **Sticker**: no bytes to fetch at all — LINE serves stickers from a public, predictable CDN URL built from `packageId`/`stickerId`. `content` stores those two ids as JSON; the UI builds the CDN URL directly (`https://stickershop.line-scdn.net/stickershop/v1/sticker/{stickerId}/android/sticker.png`), `media_path` stays null (same shape as text).
+- **File**: same download-then-store shape as image (LINE's Content API serves file bytes the identical way), but `content` holds the original filename so the UI shows something better than a bare link; the file's own extension (from `fileName`) is used for the stored path rather than guessing from `Content-Type`.
+- Webhook route restructured around an `isInboundMessageType()` type guard covering all four types now, instead of a two-way `!== "text" && !== "image"` check.
+- `MessageThread` renders each type distinctly: image (existing), sticker (an `<img>` pointed at LINE's CDN), file (an icon + filename + download link, opens in a new tab), text (existing, unchanged). The inbox list's message preview and signed-URL resolution (any message with a non-null `media_path`, not just images) were both generalized the same way.
+
+**Verified against the live database and a live dev server**
+
+- Both migrations applied via SQL Editor, no errors.
+- **Sticker was tested fully for real, through the actual webhook** — unlike every other inbound-media feature in this project, a sticker event needs no call to LINE's Content API, so a fake channel token is no obstacle at all. Sent a real signed webhook request with LINE's own well-known "Brown celebrating" sticker (`packageId=11537`, `stickerId=52002734`); confirmed the conversation and message row were created correctly, `content` held the right JSON, `media_path` was null, and a retried delivery didn't duplicate. In the browser: the sticker rendered as a real `<img>`, its CDN URL returned a genuine `200 image/png`, and the browser actually decoded it (not a broken-image icon) — visible in the screenshot as the actual LINE sticker artwork, not a placeholder.
+- **File**: confirmed the webhook fails *gracefully* when the real LINE download can't succeed (fake token) — the conversation still gets created, no partial/corrupt message row is left behind, same pattern as image. Then, same technique used for images in Step 7's follow-up: uploaded real bytes to `line-media` and called `insert_inbound_message` directly to exercise everything downstream of the one call that can't be faked. In the browser: rendered as a filename + icon + working download link; fetching that signed URL returned the actual uploaded bytes (`200`, correct content-type).
+- List page preview text confirmed showing "ไฟล์แนบ" for the file message.
+- Zero console/page errors. `next build`, `tsc --noEmit`, `eslint` all clean. All test data (fake channel, conversation, messages, uploaded file) cleaned up afterward; confirmed empty tables and unchanged test accounts.
+
+**Open items / not built yet**
+
+- Video, audio, and location messages remain silently skipped (never in scope for this round).
+- No way to *send* a sticker or file as an outbound reply — this round was inbound rendering only; `ReplyComposer` still only supports text and image.
+- Remaining open items across the whole project unchanged: Roles/Billing/Settings admin pages, `database.types.ts` regeneration, real end-to-end LINE OA verification (now including stickers/files specifically, though the sticker rendering path needed no faking at all and is about as proven as it can be without a real account).

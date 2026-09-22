@@ -10,7 +10,7 @@
 
 export type OrgRole = "owner" | "agent" | "analyst";
 export type MessageDirection = "inbound" | "outbound";
-export type MessageType = "text" | "image";
+export type MessageType = "text" | "image" | "sticker" | "file";
 export type ConversationStatus = "open" | "closed";
 export type BroadcastStatus = "sent" | "failed";
 export type RichMenuLayout = "1x1" | "2x1" | "3x1" | "2x2" | "3x2" | "custom";

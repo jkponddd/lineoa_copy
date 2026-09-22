@@ -130,6 +130,8 @@
     "noMessages": "No messages in this conversation yet.",
     "sendError": "Failed to send. Please try again.",
     "imageAlt": "Image",
+    "stickerAlt": "Sticker",
+    "fileAlt": "Attachment",
     "uploadingImage": "Uploading image...",
     "closeConversation": "Close conversation",
     "reopenConversation": "Reopen",

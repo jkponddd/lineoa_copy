@@ -11,6 +11,13 @@ const IMAGE_EXTENSION_BY_CONTENT_TYPE: Record<string, string> = {
   "image/png": "png",
 };
 
+const INBOUND_MESSAGE_TYPES = ["text", "image", "sticker", "file"] as const;
+type InboundMessageType = (typeof INBOUND_MESSAGE_TYPES)[number];
+
+function isInboundMessageType(type: string): type is InboundMessageType {
+  return (INBOUND_MESSAGE_TYPES as readonly string[]).includes(type);
+}
+
 // Not under src/app/[locale]/ — this is called by LINE's servers directly,
 // never by a browser, so it has no locale/UI concerns.
 export async function POST(request: Request) {
@@ -71,7 +78,7 @@ async function handleMessageEvent(
   event: LineMessageEvent,
 ) {
   const messageType = event.message.type;
-  if (messageType !== "text" && messageType !== "image") return;
+  if (!isInboundMessageType(messageType)) return;
 
   const profile = await getLineUserProfile(channelAccessToken, event.source.userId);
 
@@ -92,14 +99,22 @@ async function handleMessageEvent(
 
   if (messageType === "text") {
     content = event.message.text ?? "";
+  } else if (messageType === "sticker") {
+    // No bytes to fetch — LINE serves stickers from a public CDN URL built
+    // from these two ids, resolved client-side (see MessageThread).
+    content = JSON.stringify({ packageId: event.message.packageId, stickerId: event.message.stickerId });
   } else {
+    // image or file: both go through the same download-then-store shape.
     const media = await getLineMessageContent(channelAccessToken, event.message.id);
     if (!media) {
-      console.error("[line webhook] failed to download image content", event.message.id);
+      console.error(`[line webhook] failed to download ${messageType} content`, event.message.id);
       return;
     }
 
-    const extension = IMAGE_EXTENSION_BY_CONTENT_TYPE[media.contentType] ?? "jpg";
+    const extension =
+      messageType === "file"
+        ? (event.message.fileName?.split(".").pop() ?? "bin")
+        : (IMAGE_EXTENSION_BY_CONTENT_TYPE[media.contentType] ?? "jpg");
     mediaPath = `${conversation.organization_id}/${conversation.id}/${event.message.id}.${extension}`;
 
     const { error: uploadError } = await supabase.storage
@@ -107,8 +122,12 @@ async function handleMessageEvent(
       .upload(mediaPath, media.bytes, { contentType: media.contentType });
 
     if (uploadError) {
-      console.error("[line webhook] failed to upload image", uploadError);
+      console.error(`[line webhook] failed to upload ${messageType}`, uploadError);
       return;
+    }
+
+    if (messageType === "file") {
+      content = event.message.fileName ?? null;
     }
   }
 

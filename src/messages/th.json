@@ -130,6 +130,8 @@
     "noMessages": "ยังไม่มีข้อความในบทสนทนานี้",
     "sendError": "ส่งข้อความไม่สำเร็จ กรุณาลองใหม่",
     "imageAlt": "รูปภาพ",
+    "stickerAlt": "สติกเกอร์",
+    "fileAlt": "ไฟล์แนบ",
     "uploadingImage": "กำลังส่งรูปภาพ...",
     "closeConversation": "ปิดบทสนทนา",
     "reopenConversation": "เปิดใหม่",

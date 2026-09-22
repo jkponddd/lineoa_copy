@@ -20,13 +20,23 @@ export type LineWebhookBody = {
 };
 
 // The subset of a "message" event's payload the Inbox feature actually
-// consumes. Other message subtypes (video/audio/file/location/sticker)
-// come through with this same shape but aren't persisted yet — narrowed to
-// "text" | "image" by the webhook handler before use.
+// consumes. Other message subtypes (video/audio/location) come through
+// with this same shape but aren't persisted yet — narrowed to
+// "text" | "image" | "sticker" | "file" by the webhook handler before use.
 export type LineMessageEvent = LineWebhookEvent & {
   type: "message";
   source: { type: string; userId: string };
-  message: { id: string; type: string; text?: string };
+  message: {
+    id: string;
+    type: string;
+    text?: string;
+    // sticker
+    packageId?: string;
+    stickerId?: string;
+    // file
+    fileName?: string;
+    fileSize?: number;
+  };
 };
 
 // Message objects sent TO LINE (reply/push). Text is the only variant

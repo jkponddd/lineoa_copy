@@ -16,7 +16,7 @@ import type { ConversationStatus } from "@/lib/supabase/database.types";
 type MessageRow = {
   id: string;
   direction: "inbound" | "outbound";
-  type: "text" | "image";
+  type: "text" | "image" | "sticker" | "file";
   content: string | null;
   media_path: string | null;
   created_at: string;
@@ -48,12 +48,14 @@ export default async function InboxThreadPage({ params }: { params: Promise<{ co
   if (!conversation) notFound();
 
   const rows = messages ?? [];
-  const imagePaths = rows.filter((m) => m.type === "image" && m.media_path).map((m) => m.media_path as string);
+  // Both "image" and "file" messages carry their bytes in Storage; sticker
+  // content is a public CDN URL built client-side, no signed URL needed.
+  const mediaPaths = rows.filter((m) => m.media_path).map((m) => m.media_path as string);
 
   const signedUrlByPath = new Map<string, string>();
-  if (imagePaths.length > 0) {
+  if (mediaPaths.length > 0) {
     await Promise.all(
-      imagePaths.map(async (path) => {
+      mediaPaths.map(async (path) => {
         const { data } = await supabase.storage.from("line-media").createSignedUrl(path, 3600);
         if (data) signedUrlByPath.set(path, data.signedUrl);
       }),
@@ -73,7 +75,7 @@ export default async function InboxThreadPage({ params }: { params: Promise<{ co
       <MessageThread
         messages={rows.map((m) => ({
           ...m,
-          imageUrl: m.media_path ? (signedUrlByPath.get(m.media_path) ?? null) : null,
+          mediaUrl: m.media_path ? (signedUrlByPath.get(m.media_path) ?? null) : null,
         }))}
       />
 

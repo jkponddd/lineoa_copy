@@ -19,7 +19,7 @@ type ConversationRow = {
   status: ConversationStatus;
 };
 
-type PreviewRow = { conversation_id: string; type: "text" | "image"; content: string | null };
+type PreviewRow = { conversation_id: string; type: "text" | "image" | "sticker" | "file"; content: string | null };
 
 export default async function InboxListPage() {
   const membership = await getCurrentMembership();
@@ -118,7 +118,7 @@ function InboxListView({
               </div>
               <div className="flex items-center justify-between gap-2">
                 <p className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
-                  {preview ? (preview.type === "image" ? t("imageAlt") : preview.content) : ""}
+                  {preview ? previewText(preview, t) : ""}
                 </p>
                 <p className="shrink-0 text-xs text-muted-foreground">
                   {new Date(conversation.last_message_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -136,4 +136,11 @@ function InboxListView({
       })}
     </div>
   );
+}
+
+function previewText(preview: PreviewRow, t: ReturnType<typeof useTranslations>): string {
+  if (preview.type === "image") return t("imageAlt");
+  if (preview.type === "sticker") return t("stickerAlt");
+  if (preview.type === "file") return preview.content || t("fileAlt");
+  return preview.content ?? "";
 }
