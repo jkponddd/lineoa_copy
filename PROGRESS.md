@@ -572,3 +572,21 @@ User-reported: "sidebar active menu ไม่ตามกับ url path" (the s
 **Fix**: `active = pathname === item.href || pathname.startsWith(\`${item.href}/\`)` in both components. Checked that no current nav href is a prefix of another (e.g. `/admin/line-channels` isn't a prefix of any other admin route), so a plain prefix match is safe without needing a more careful segment-boundary check.
 
 **Verified live**: seeded a real conversation via the webhook, logged in, confirmed Inbox was active on both the list page and the nested thread page (previously only the former), confirmed a different nav item (Reports) correctly stayed inactive on the thread page, and confirmed the same fix holds on the mobile bottom nav. `next build`/`tsc`/`eslint` clean. Test data cleaned up afterward.
+
+---
+
+## 2026-09-22 (continued) — Verification: Inbox image messages (inbound + outbound)
+
+Picked via AskUserQuestion from the remaining open items. Turned out to be mostly a **verification gap, not a missing-feature gap** — both the webhook's image-download branch (Step 7) and `MessageThread`'s `<img>` rendering already existed in code, but had never actually been exercised end-to-end; Step 7's own testing only ever sent `type: "text"` events through the webhook.
+
+**What was actually tested** (since the one genuinely untestable piece — the webhook's live fetch from LINE's `api-data.line.me` with a real message id — still needs a real connected LINE Official Account, same as ever):
+
+- Simulated a successful inbound image exactly the way the webhook's own code does it *after* a real LINE download would succeed: uploaded real image bytes to the `line-media` bucket at the same `{organization_id}/{conversation_id}/{line_message_id}.png` path convention the webhook uses, then called `insert_inbound_message` directly — exercising every step downstream of the one call that can't be faked.
+- In a real browser: the image rendered as an actual `<img>` in the thread; its `src` was a genuine `line-media` signed URL; fetching that URL returned `200` with an `image/*` content-type (not a broken/expired link); the browser actually decoded it (`naturalWidth > 0`, not a broken-image icon).
+- Outbound: uploaded a real image through the actual `ReplyComposer` UI (file picker → real browser upload to `line-media`, covered by its own RLS insert policy) and confirmed it reached the point of calling LINE's push API, failing there with the expected error (fake channel credentials) — the same "mechanics proven, real delivery blocked" pattern as every other outbound LINE feature in this project.
+- Zero console/page errors throughout. Test data (fake channel, conversation, uploaded image) cleaned up afterward.
+
+**Open items / not built yet**
+
+- The one piece that remains genuinely unverified across the whole project: an actual image arriving from a real LINE user's device through a real, connected LINE Official Account. Nothing further can close this gap without one existing.
+- Message types beyond text/image (video, audio, file, sticker, location) — still not built, unchanged from Step 7.
