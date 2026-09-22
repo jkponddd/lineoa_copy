@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentMembership } from "@/lib/supabase/get-current-membership";
 import { getLineBotInfo } from "@/lib/line/get-bot-info";
+import { logAuditEvent } from "@/lib/audit/log";
 import type { AuthFormState } from "../../../(auth)/actions";
 
 export async function connectLineChannel(_prevState: AuthFormState, formData: FormData): Promise<AuthFormState> {
@@ -42,12 +43,38 @@ export async function connectLineChannel(_prevState: AuthFormState, formData: Fo
     return { error: message, info: null };
   }
 
+  await logAuditEvent({
+    organizationId: membership.organization.id,
+    actorId: membership.user.id,
+    action: "line_channel.connected",
+    target: displayName,
+    metadata: { line_channel_id: lineChannelId },
+  });
+
   revalidatePath("/[locale]/(admin)/admin/line-channels", "page");
   return { error: null, info: "connected" };
 }
 
 export async function disconnectLineChannel(lineChannelId: string): Promise<void> {
+  const membership = await getCurrentMembership();
+  if (!membership) return;
+
   const supabase = await createClient();
+  const { data: channel } = await supabase
+    .from("line_channels")
+    .select("display_name")
+    .eq("line_channel_id", lineChannelId)
+    .maybeSingle();
+
   await supabase.rpc("delete_line_channel", { p_line_channel_id: lineChannelId });
+
+  await logAuditEvent({
+    organizationId: membership.organization.id,
+    actorId: membership.user.id,
+    action: "line_channel.disconnected",
+    target: channel?.display_name ?? lineChannelId,
+    metadata: { line_channel_id: lineChannelId },
+  });
+
   revalidatePath("/[locale]/(admin)/admin/line-channels", "page");
 }

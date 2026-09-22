@@ -370,3 +370,31 @@ No new migration needed — `conversations.status` and the `conversation_status`
 - `ThreadHeader` restructured into two rows (name row, then assign+status row) — the original single-row layout had no room left once a second control was added on a 390px mobile viewport.
 - Inbox list: closed conversations render at reduced opacity with a small "ปิดแล้ว" badge next to the name.
 - Verified live: toggling closed/reopen actually persists and the button label flips; the list reflects the closed badge; checked at both desktop and mobile widths; `next build`/`tsc`/`eslint` clean; test data seeded and cleaned up the same way as the main Inbox verification.
+
+---
+
+## 2026-09-22 (continued) — Phase 1, Step 8: Audit Log
+
+Scope picked via AskUserQuestion from the remaining open items (Audit Log / Broadcast / Reports / Settings) — chosen for being the smallest, most contained: `audit_log` and its RLS already existed from Step 2, nothing had ever written to it yet.
+
+**What was built**
+
+- One new migration, applied and verified live: `20260922020000_audit_log_read.sql` — `get_audit_log(organization_id, limit)`, a SECURITY DEFINER function joining `auth.users`/`profiles` for the actor's email/name, gated identically to `get_organization_members` (`where is_org_member(...) and organization_id = ...`, `authenticated`-only). No new write path was needed — the existing "Org members can write audit entries" RLS policy from Step 2 already covers a plain `.insert()`.
+- `src/lib/audit/log.ts` — `logAuditEvent()`, a thin best-effort insert helper (a failed audit write doesn't roll back or surface an error for the action that already succeeded).
+- Wired into the four existing admin actions that change organization state: `member.added` / `member.role_changed` / `member.removed` (`admin/users/actions.ts`) and `line_channel.connected` / `line_channel.disconnected` (`admin/line-channels/actions.ts`). `target` is a human-readable label (email, channel display name) resolved *before* any delete happens — resolving it after would find nothing, since the row is already gone.
+- `/admin/audit-log` page — table of time / actor / action (translated label) / target, newest first. Nav item already existed from the Step 1 scaffold.
+- New `auditLog` translation namespace in both `th.json`/`en.json`, including one label per action type.
+
+**Verified against the live database and a live dev server**
+
+- Migration applied via SQL Editor, no errors.
+- Service-role + owner-session script: an org member can insert an audit_log row for their own org and `get_audit_log` returns it with the actor's email correctly resolved (PASS); an anonymous session calling `get_audit_log` is rejected with "permission denied," not just empty (PASS, grant-level block); an authenticated session querying a *different* organization's id sees zero rows without erroring (PASS, RLS-style isolation via the same `is_org_member` pattern as `get_organization_members`).
+- Full real UI flow: added a genuine temporary auth account as a member through the actual `/admin/users` UI, removed them again, and disconnected a LINE channel (seeded via RPC directly, since actually *connecting* one through the UI needs a real LINE access token — same caveat as the Inbox step) through the actual `/admin/line-channels` UI. `/admin/audit-log` correctly showed all four resulting entries with the right action label, actor, and target. (Two of the test script's own assertions about the users/channels list — not the audit log itself — initially reported false failures from a Playwright dialog-listener timing bug in the *test script*, not the app; cross-checked directly against the database that the member was actually removed and the channel actually disconnected, confirming the app worked correctly and the script's checks were the only thing wrong.)
+- Checked at both desktop and mobile widths. The table scrolls horizontally on a 390px viewport rather than wrapping — confirmed via `scrollWidth`/`clientWidth` that it's genuinely swipeable, not actually cut off. This is the same existing `Table` component's behavior already used on `/admin/users`, not something new introduced here, so left as-is rather than redesigning it as part of this step.
+- `next build`, `tsc --noEmit`, `eslint` all clean. All test data (temp auth account, temp LINE channel, synthetic audit_log rows) cleaned up afterward; confirmed the three documented test accounts are back to their correct roles and `conversations`/`audit_log` are both empty again.
+
+**Open items / not built yet**
+
+- The audit log table's mobile layout (horizontal scroll, no stacked-card alternative) — pre-existing pattern, not addressed here.
+- No pagination/filtering on the audit log yet (capped at the RPC's `p_limit` default of 200 rows).
+- Everything carried over from Steps 6–7 (message types beyond text/image, email template, invite-by-email, `database.types.ts` regeneration, real LINE OA verification).

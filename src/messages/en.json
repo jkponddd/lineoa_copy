@@ -135,5 +135,20 @@
     "reopenConversation": "Reopen",
     "statusClosed": "Closed",
     "statusUpdateError": "Failed to update status. Please try again."
+  },
+  "auditLog": {
+    "title": "Audit Log",
+    "description": "History of significant changes in this organization.",
+    "empty": "No audit log entries yet.",
+    "tableTime": "Time",
+    "tableActor": "Actor",
+    "tableAction": "Action",
+    "tableTarget": "Target",
+    "systemActor": "System",
+    "actionMemberAdded": "Member added",
+    "actionMemberRoleChanged": "Member role changed",
+    "actionMemberRemoved": "Member removed",
+    "actionLineChannelConnected": "LINE channel connected",
+    "actionLineChannelDisconnected": "LINE channel disconnected"
   }
 }

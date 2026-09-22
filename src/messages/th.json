@@ -135,5 +135,20 @@
     "reopenConversation": "เปิดใหม่",
     "statusClosed": "ปิดแล้ว",
     "statusUpdateError": "เปลี่ยนสถานะไม่สำเร็จ กรุณาลองใหม่"
+  },
+  "auditLog": {
+    "title": "บันทึกการตรวจสอบ",
+    "description": "ประวัติการเปลี่ยนแปลงสำคัญในองค์กรนี้",
+    "empty": "ยังไม่มีบันทึกการตรวจสอบ",
+    "tableTime": "เวลา",
+    "tableActor": "ผู้ดำเนินการ",
+    "tableAction": "การกระทำ",
+    "tableTarget": "เป้าหมาย",
+    "systemActor": "ระบบ",
+    "actionMemberAdded": "เพิ่มสมาชิก",
+    "actionMemberRoleChanged": "เปลี่ยนบทบาทสมาชิก",
+    "actionMemberRemoved": "ลบสมาชิก",
+    "actionLineChannelConnected": "เชื่อมต่อ LINE Channel",
+    "actionLineChannelDisconnected": "ยกเลิกการเชื่อมต่อ LINE Channel"
   }
 }

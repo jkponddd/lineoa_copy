@@ -217,6 +217,19 @@ export type Database = {
         };
         Returns: Database["public"]["Tables"]["conversations"]["Row"];
       };
+      get_audit_log: {
+        Args: { p_organization_id: string; p_limit?: number };
+        Returns: {
+          id: string;
+          action: string;
+          target: string | null;
+          metadata: Record<string, unknown>;
+          actor_id: string | null;
+          actor_email: string | null;
+          actor_full_name: string | null;
+          created_at: string;
+        }[];
+      };
       insert_inbound_message: {
         Args: {
           p_conversation_id: string;
