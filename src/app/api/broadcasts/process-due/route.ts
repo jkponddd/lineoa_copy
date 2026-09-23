@@ -42,7 +42,7 @@ async function processDueBroadcasts(request: Request) {
 
   const { data: due, error } = await supabase
     .from("broadcasts")
-    .select("id, line_channel_id, template, content, image_media_path, link_url, link_label, audience")
+    .select("id, line_channel_id, blocks, audience")
     .eq("status", "scheduled")
     .lte("scheduled_at", new Date().toISOString());
 
@@ -70,13 +70,7 @@ async function processDueBroadcasts(request: Request) {
       continue;
     }
 
-    const messages = await buildBroadcastMessages({
-      template: broadcast.template,
-      content: broadcast.content,
-      imageMediaPath: broadcast.image_media_path,
-      linkUrl: broadcast.link_url,
-      linkLabel: broadcast.link_label,
-    });
+    const messages = await buildBroadcastMessages(broadcast.blocks);
     const sent = await performBroadcastSend({
       lineChannelUuid: broadcast.line_channel_id,
       audience: broadcast.audience,

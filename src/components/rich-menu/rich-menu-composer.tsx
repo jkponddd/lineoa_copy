@@ -24,7 +24,7 @@ import type { RichMenuActionType, RichMenuAreaData, RichMenuLayout } from "@/lib
 type Channel = { id: string; display_name: string };
 type SwitchTarget = { id: string; name: string };
 
-type AreaInput = { label: string; action_type: RichMenuActionType; action_value: string; bounds: PercentBounds };
+export type AreaInput = { label: string; action_type: RichMenuActionType; action_value: string; bounds: PercentBounds };
 
 function templateAreas(layout: TemplateRichMenuLayout): AreaInput[] {
   return computeTemplateAreaBoundsPercent(layout).map((bounds) => ({
@@ -35,20 +35,28 @@ function templateAreas(layout: TemplateRichMenuLayout): AreaInput[] {
   }));
 }
 
+export type RichMenuInitialValues = {
+  name: string;
+  layout: RichMenuLayout;
+  areas: AreaInput[];
+};
+
 export function RichMenuComposer({
   channels,
   organizationId,
   switchTargetsByChannel,
+  initialValues,
 }: {
   channels: Channel[];
   organizationId: string;
   switchTargetsByChannel: Record<string, SwitchTarget[]>;
+  initialValues?: RichMenuInitialValues;
 }) {
   const t = useTranslations("richMenu");
   const [channelId, setChannelId] = useState(channels[0]?.id ?? "");
-  const [name, setName] = useState("");
-  const [layout, setLayout] = useState<RichMenuLayout>("2x2");
-  const [areas, setAreas] = useState<AreaInput[]>(templateAreas("2x2"));
+  const [name, setName] = useState(initialValues?.name ?? "");
+  const [layout, setLayout] = useState<RichMenuLayout>(initialValues?.layout ?? "2x2");
+  const [areas, setAreas] = useState<AreaInput[]>(initialValues?.areas ?? templateAreas("2x2"));
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

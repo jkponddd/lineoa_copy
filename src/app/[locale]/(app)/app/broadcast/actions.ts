@@ -6,22 +6,20 @@ import { createClient } from "@/lib/supabase/server";
 import { getLineChannelAccessTokenByChannelUuid } from "@/lib/line/get-channel-access-token";
 import { pushMessage } from "@/lib/line/send-message";
 import { buildBroadcastMessages, performBroadcastSend } from "@/lib/broadcast/send-broadcast";
-import type { BroadcastAudience, BroadcastTemplate } from "@/lib/supabase/database.types";
+import { blocksAreValid, type BroadcastBlock } from "@/lib/broadcast/blocks";
+import type { BroadcastAudience } from "@/lib/supabase/database.types";
 
 export type BroadcastActionResult = { error: string | null };
 
 export type BroadcastComposeParams = {
   lineChannelId: string;
-  template: BroadcastTemplate;
-  content: string | null;
-  imageMediaPath: string | null;
-  linkUrl: string | null;
-  linkLabel: string | null;
+  blocks: BroadcastBlock[];
   audience: BroadcastAudience;
 };
 
 function revalidateBroadcastPaths() {
   revalidatePath("/[locale]/(app)/app/broadcast", "page");
+  revalidatePath("/[locale]/(app)/app/broadcast/new", "page");
 }
 
 // Send now (scheduledAt null) or queue for later (scheduledAt set). When
@@ -32,6 +30,8 @@ function revalidateBroadcastPaths() {
 export async function sendBroadcast(
   params: BroadcastComposeParams & { scheduledAt: string | null; existingDraftId: string | null },
 ): Promise<BroadcastActionResult> {
+  if (!blocksAreValid(params.blocks)) return { error: "empty" };
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -41,17 +41,13 @@ export async function sendBroadcast(
   if (params.scheduledAt) {
     // Queued: nothing gets sent to LINE until the cron-triggered route
     // (src/app/api/broadcasts/process-due) picks it up at or after
-    // scheduledAt. No point resolving a signed image URL now either; it
-    // would likely expire before send time.
+    // scheduledAt. No point resolving signed media URLs now either; they'd
+    // likely expire before send time.
     const { error } = params.existingDraftId
       ? await supabase.rpc("update_broadcast", {
           p_broadcast_id: params.existingDraftId,
           p_line_channel_id: params.lineChannelId,
-          p_template: params.template,
-          p_content: params.content,
-          p_image_media_path: params.imageMediaPath,
-          p_link_url: params.linkUrl,
-          p_link_label: params.linkLabel,
+          p_blocks: params.blocks,
           p_audience: params.audience,
           p_scheduled_at: params.scheduledAt,
           p_status: "scheduled",
@@ -59,11 +55,7 @@ export async function sendBroadcast(
         })
       : await supabase.rpc("record_broadcast", {
           p_line_channel_id: params.lineChannelId,
-          p_template: params.template,
-          p_content: params.content,
-          p_image_media_path: params.imageMediaPath,
-          p_link_url: params.linkUrl,
-          p_link_label: params.linkLabel,
+          p_blocks: params.blocks,
           p_audience: params.audience,
           p_scheduled_at: params.scheduledAt,
           p_status: "scheduled",
@@ -76,13 +68,7 @@ export async function sendBroadcast(
     return { error: null };
   }
 
-  const messages = await buildBroadcastMessages({
-    template: params.template,
-    content: params.content,
-    imageMediaPath: params.imageMediaPath,
-    linkUrl: params.linkUrl,
-    linkLabel: params.linkLabel,
-  });
+  const messages = await buildBroadcastMessages(params.blocks);
   const sent = await performBroadcastSend({
     lineChannelUuid: params.lineChannelId,
     audience: params.audience,
@@ -95,11 +81,7 @@ export async function sendBroadcast(
     ? await supabase.rpc("update_broadcast", {
         p_broadcast_id: params.existingDraftId,
         p_line_channel_id: params.lineChannelId,
-        p_template: params.template,
-        p_content: params.content,
-        p_image_media_path: params.imageMediaPath,
-        p_link_url: params.linkUrl,
-        p_link_label: params.linkLabel,
+        p_blocks: params.blocks,
         p_audience: params.audience,
         p_scheduled_at: null,
         p_status: sent.ok ? "sent" : "failed",
@@ -107,11 +89,7 @@ export async function sendBroadcast(
       })
     : await supabase.rpc("record_broadcast", {
         p_line_channel_id: params.lineChannelId,
-        p_template: params.template,
-        p_content: params.content,
-        p_image_media_path: params.imageMediaPath,
-        p_link_url: params.linkUrl,
-        p_link_label: params.linkLabel,
+        p_blocks: params.blocks,
         p_audience: params.audience,
         p_scheduled_at: null,
         p_status: sent.ok ? "sent" : "failed",
@@ -140,6 +118,8 @@ export async function cancelScheduledBroadcast(broadcastId: string): Promise<Bro
 // row's id so the composer can switch into "editing this draft" mode
 // (further saves update it in place instead of creating duplicates).
 export async function saveBroadcastDraft(params: BroadcastComposeParams): Promise<BroadcastActionResult & { id: string | null }> {
+  if (!blocksAreValid(params.blocks)) return { error: "empty", id: null };
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -148,11 +128,7 @@ export async function saveBroadcastDraft(params: BroadcastComposeParams): Promis
 
   const { data, error } = await supabase.rpc("record_broadcast", {
     p_line_channel_id: params.lineChannelId,
-    p_template: params.template,
-    p_content: params.content,
-    p_image_media_path: params.imageMediaPath,
-    p_link_url: params.linkUrl,
-    p_link_label: params.linkLabel,
+    p_blocks: params.blocks,
     p_audience: params.audience,
     p_scheduled_at: null,
     p_status: "draft",
@@ -168,15 +144,13 @@ export async function saveBroadcastDraft(params: BroadcastComposeParams): Promis
 
 // Re-saves an existing draft's fields in place, without sending it.
 export async function updateBroadcastDraft(broadcastId: string, params: BroadcastComposeParams): Promise<BroadcastActionResult> {
+  if (!blocksAreValid(params.blocks)) return { error: "empty" };
+
   const supabase = await createClient();
   const { error } = await supabase.rpc("update_broadcast", {
     p_broadcast_id: broadcastId,
     p_line_channel_id: params.lineChannelId,
-    p_template: params.template,
-    p_content: params.content,
-    p_image_media_path: params.imageMediaPath,
-    p_link_url: params.linkUrl,
-    p_link_label: params.linkLabel,
+    p_blocks: params.blocks,
     p_audience: params.audience,
     p_scheduled_at: null,
     p_status: "draft",
@@ -208,6 +182,7 @@ export async function sendTestBroadcast(
 ): Promise<BroadcastActionResult> {
   const trimmedTarget = params.targetUserId.trim();
   if (!trimmedTarget) return { error: "testTargetRequired" };
+  if (!blocksAreValid(params.blocks)) return { error: "empty" };
 
   const supabase = await createClient();
   const {
@@ -218,13 +193,7 @@ export async function sendTestBroadcast(
   const accessToken = await getLineChannelAccessTokenByChannelUuid(params.lineChannelId);
   if (!accessToken) return { error: "channel_unavailable" };
 
-  const messages = await buildBroadcastMessages({
-    template: params.template,
-    content: params.content,
-    imageMediaPath: params.imageMediaPath,
-    linkUrl: params.linkUrl,
-    linkLabel: params.linkLabel,
-  });
+  const messages = await buildBroadcastMessages(params.blocks);
   if (messages.length === 0) return { error: "empty" };
 
   const sent = await pushMessage(accessToken, trimmedTarget, messages);

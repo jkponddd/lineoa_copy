@@ -14,7 +14,14 @@ export type MessageType = "text" | "image" | "sticker" | "file";
 export type ConversationStatus = "open" | "closed";
 export type BroadcastStatus = "draft" | "scheduled" | "sending" | "sent" | "failed";
 export type BroadcastAudience = "all" | "conversations";
-export type BroadcastTemplate = "text" | "image_text" | "image_link";
+// Kept in sync with src/lib/broadcast/blocks.ts's BroadcastBlock — that
+// file is the source of truth for the shape and the block->LINE-message
+// conversion; this is just the jsonb column's type for query results.
+export type BroadcastBlock =
+  | { id: string; type: "text"; text: string }
+  | { id: string; type: "image"; mediaPath: string }
+  | { id: string; type: "video"; mediaPath: string; previewMediaPath: string }
+  | { id: string; type: "button"; label: string; url: string };
 export type RichMenuLayout = "1x1" | "2x1" | "3x1" | "2x2" | "3x2" | "custom";
 export type RichMenuStatus = "published" | "failed";
 export type RichMenuActionType = "message" | "uri" | "richmenuswitch";
@@ -178,11 +185,7 @@ export type Database = {
           id: string;
           organization_id: string;
           line_channel_id: string;
-          template: BroadcastTemplate;
-          content: string | null;
-          image_media_path: string | null;
-          link_url: string | null;
-          link_label: string | null;
+          blocks: BroadcastBlock[];
           audience: BroadcastAudience;
           scheduled_at: string | null;
           status: BroadcastStatus;
@@ -334,11 +337,7 @@ export type Database = {
       record_broadcast: {
         Args: {
           p_line_channel_id: string;
-          p_template: BroadcastTemplate;
-          p_content: string | null;
-          p_image_media_path: string | null;
-          p_link_url: string | null;
-          p_link_label: string | null;
+          p_blocks: BroadcastBlock[];
           p_audience: BroadcastAudience;
           p_scheduled_at: string | null;
           p_status: BroadcastStatus;
@@ -351,11 +350,7 @@ export type Database = {
         Args: {
           p_broadcast_id: string;
           p_line_channel_id: string;
-          p_template: BroadcastTemplate;
-          p_content: string | null;
-          p_image_media_path: string | null;
-          p_link_url: string | null;
-          p_link_label: string | null;
+          p_blocks: BroadcastBlock[];
           p_audience: BroadcastAudience;
           p_scheduled_at: string | null;
           p_status: BroadcastStatus;
