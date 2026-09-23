@@ -22,7 +22,6 @@ export type EditableBlock =
   | (Extract<BroadcastBlock, { type: "image" }> & { _file?: File; _fileUrl?: string })
   | (Extract<BroadcastBlock, { type: "video" }> & { _file?: File; _previewFile?: File; _fileUrl?: string; _previewFileUrl?: string })
   | Extract<BroadcastBlock, { type: "button" }>
-  | (Extract<BroadcastBlock, { type: "imagemap" }> & { _file?: File; _fileUrl?: string })
   | (Omit<Extract<BroadcastBlock, { type: "flex" }>, "hero" | "body" | "footer"> & {
       hero: Extract<EditableFlexComponent, { type: "image" }> | null;
       body: Extract<EditableFlexComponent, { type: "box" }>;
@@ -42,7 +41,7 @@ function toEditableFlexComponent(c: FlexComponent, mediaUrlByPath: Record<string
 // in-memory state when re-hydrating after the JSON editor.
 export function toEditableBlocks(blocks: BroadcastBlock[], mediaUrlByPath: Record<string, string>): EditableBlock[] {
   return blocks.map((block): EditableBlock => {
-    if (block.type === "image" || block.type === "imagemap") return { ...block, _fileUrl: mediaUrlByPath[block.mediaPath] };
+    if (block.type === "image") return { ...block, _fileUrl: mediaUrlByPath[block.mediaPath] };
     if (block.type === "video") {
       return { ...block, _fileUrl: mediaUrlByPath[block.mediaPath], _previewFileUrl: mediaUrlByPath[block.previewMediaPath] };
     }
@@ -69,7 +68,7 @@ function persistFlexComponent(c: EditableFlexComponent): FlexComponent {
 
 export function toPersistedBlocks(blocks: EditableBlock[]): BroadcastBlock[] {
   return blocks.map((block): BroadcastBlock => {
-    if (block.type === "image" || block.type === "imagemap") {
+    if (block.type === "image") {
       const { _file: _f, _fileUrl: _u, ...rest } = block;
       void _f;
       void _u;
@@ -122,7 +121,7 @@ function collectFlexMediaUrls(c: EditableFlexComponent, out: Record<string, stri
 export function collectMediaUrlMap(blocks: EditableBlock[]): Record<string, string> {
   const out: Record<string, string> = {};
   for (const block of blocks) {
-    if ((block.type === "image" || block.type === "imagemap") && block.mediaPath && block._fileUrl) out[block.mediaPath] = block._fileUrl;
+    if (block.type === "image" && block.mediaPath && block._fileUrl) out[block.mediaPath] = block._fileUrl;
     if (block.type === "video") {
       if (block.mediaPath && block._fileUrl) out[block.mediaPath] = block._fileUrl;
       if (block.previewMediaPath && block._previewFileUrl) out[block.previewMediaPath] = block._previewFileUrl;
@@ -144,7 +143,7 @@ export function collectMediaUrlMap(blocks: EditableBlock[]): Record<string, stri
 // the server uses at send time, just with a different URL source.
 export function previewLineMessages(blocks: EditableBlock[]): LineMessage[] {
   const previewBlocks: BroadcastBlock[] = blocks.map((block): BroadcastBlock => {
-    if (block.type === "image" || block.type === "imagemap") return { ...block, mediaPath: block._fileUrl || block.mediaPath };
+    if (block.type === "image") return { ...block, mediaPath: block._fileUrl || block.mediaPath };
     if (block.type === "video") {
       return { ...block, mediaPath: block._fileUrl || block.mediaPath, previewMediaPath: block._previewFileUrl || block.previewMediaPath };
     }

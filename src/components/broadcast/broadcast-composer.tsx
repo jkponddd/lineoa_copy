@@ -124,7 +124,7 @@ export function BroadcastComposer({
     setUploading(true);
     const resolved: EditableBlock[] = [];
     for (const block of blocks) {
-      if ((block.type === "image" || block.type === "imagemap") && block._file) {
+      if (block.type === "image" && block._file) {
         const path = await uploadFile(block._file, "jpg");
         if (!path) {
           setUploading(false);

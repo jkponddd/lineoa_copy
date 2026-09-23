@@ -883,3 +883,28 @@ User asked for three more things on top of Step 21's block editor: (1) images th
 - The JSON popup edits the composer's block structure, not LINE's literal outbound message JSON — a deliberate, explained trade-off (the only sound lossless round trip), not an oversight.
 - Capture-to-image was added to Broadcast's preview only, as literally requested — Rich Menu's own preview doesn't have it yet; would be a natural, small follow-up for full consistency between the two pages.
 - Remaining open items across the whole project otherwise unchanged (see previous entries).
+
+---
+
+## 2026-09-23 (continued) — Phase 1, Step 23: Unify Image/Imagemap into one block, fix a real drag-and-drop bug
+
+User asked three follow-up questions about Step 22 that turned into real changes: (1) wanted the plain "รูปภาพ" block to optionally carry its own single tap action, the same way Flex's image component already can; (2) asked directly whether "รูปภาพ" and "Imagemap" should really be two separate block types or unified into one — decided yes, unify, since "an image with zero/one/many tap zones" is one concept, not three; (3) reported that Imagemap was actually unusable — dragging on the image to draw a tap region moved the whole block instead.
+
+**What was built**
+
+- **Image block, three modes, one block type**: `image` now carries `mode: "plain" | "action" | "regions"` plus the fields each mode needs (`action` for a single Buttons-Template-style tap action; `altText`/`aspectRatio`/`areas` for Imagemap-style regions). The standalone `imagemap` block type is gone — folded entirely into `image`. No migration needed: `blocks` was already a schemaless jsonb array from Step 21, so this was purely an application-layer type/UI change.
+  - New `ImageBlockFields` component replaces the old split between a plain "attach image" field and a separate `ImagemapEditor` — one shared image-attach control up top, a small three-way mode selector, then mode-specific fields below (nothing extra for "plain"; label/type/URL for "action"; alt text + the reused Rich Menu area-drawing canvas + a per-region list for "regions").
+  - `blocksToLineMessages` (`src/lib/broadcast/blocks.ts`) now branches on `image.mode`: plain → ordinary `image` message; `action` → a Buttons Template with just a thumbnail (no separate button block needed anymore, though the existing image+button merge behavior for *plain*-mode images is untouched, so that route still works too); `regions` → the same Imagemap Message construction as before.
+- **Real bug fix — nested drag conflict**: `BlockEditor`'s per-block card had `draggable={true}` on the *entire* card (for whole-block reordering), which — per HTML5 drag-and-drop semantics — hijacks any drag gesture starting anywhere inside it, including the pointer-based area-drawing canvas nested inside an Imagemap-mode image block. Trying to draw a region was being interpreted as "start dragging the whole block" instead. Fixed by moving `draggable`/`onDragStart`/`onDragEnd` onto *just* the grip-handle icon, leaving `onDragOver`/`onDrop` (valid drop-target listeners, unaffected by this issue) on the full card. Whole-block reordering via the handle still works; the nested canvas's own pointer handling is no longer hijacked.
+
+**Verified against a live dev server**
+
+- Confirmed "Imagemap" no longer appears as its own block-type button — only one unified "รูปภาพ" entry.
+- Added an image block, attached a real photo, confirmed all three mode buttons render and switching to "action" mode shows label/type/URL fields.
+- Switched to "regions" mode and **reproduced the exact reported bug first** (before the fix, dragging on the canvas moved/reordered the block instead of drawing a region — confirmed via the same live dev server), then confirmed after the fix that dragging on the canvas correctly draws a tap region, the block itself stays in place, and the live preview reflects the drawn region overlay.
+- Confirmed whole-block reordering via the grip handle still works (regression check) — dragging the handle itself still functions as a native drag source.
+- `next build`, `tsc --noEmit`, `eslint` all clean. No DB changes, no test data to clean up (nothing was ever submitted during this verification pass).
+
+**Open items / not built yet**
+
+- Remaining open items across the whole project otherwise unchanged (see previous entries).

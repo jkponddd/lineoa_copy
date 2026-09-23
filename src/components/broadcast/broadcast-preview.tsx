@@ -133,30 +133,26 @@ function BlockBubble({ block }: { block: EditableBlock }) {
 
   if (block.type === "image") {
     if (!block._fileUrl) return <EmptyBlockHint label={t("blockImage")} />;
-    // eslint-disable-next-line @next/next/no-img-element -- local preview / signed URL
-    return <img src={block._fileUrl} alt="" className="max-h-40 w-fit max-w-full rounded-lg rounded-tl-sm object-cover" />;
+    return (
+      <div className="relative w-fit max-w-full overflow-hidden rounded-lg rounded-tl-sm">
+        {/* eslint-disable-next-line @next/next/no-img-element -- local preview, signed, or public proxy URL */}
+        <img src={block._fileUrl} alt="" className="max-h-40 w-fit max-w-full object-cover" />
+        {block.mode === "regions"
+          ? block.areas.map((area) => (
+              <div
+                key={area.id}
+                className="absolute border border-primary/70 bg-primary/10"
+                style={{ left: `${area.x}%`, top: `${area.y}%`, width: `${area.width}%`, height: `${area.height}%` }}
+              />
+            ))
+          : null}
+      </div>
+    );
   }
 
   if (block.type === "video") {
     if (!block._fileUrl) return <EmptyBlockHint label={t("blockVideo")} />;
     return <video src={block._fileUrl} controls className="max-h-40 w-fit max-w-full rounded-lg rounded-tl-sm" />;
-  }
-
-  if (block.type === "imagemap") {
-    if (!block._fileUrl) return <EmptyBlockHint label={t("blockImagemap")} />;
-    return (
-      <div className="relative w-fit max-w-full overflow-hidden rounded-lg rounded-tl-sm">
-        {/* eslint-disable-next-line @next/next/no-img-element -- local preview / public proxy URL */}
-        <img src={block._fileUrl} alt="" className="max-h-40 w-fit max-w-full object-cover" />
-        {block.areas.map((area) => (
-          <div
-            key={area.id}
-            className="absolute border border-primary/70 bg-primary/10"
-            style={{ left: `${area.x}%`, top: `${area.y}%`, width: `${area.width}%`, height: `${area.height}%` }}
-          />
-        ))}
-      </div>
-    );
   }
 
   if (block.type === "flex") {

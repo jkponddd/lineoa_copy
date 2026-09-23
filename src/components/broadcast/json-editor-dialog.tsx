@@ -9,7 +9,7 @@ import { MonokaiJsonEditor } from "@/components/broadcast/monokai-json-editor";
 import { toPersistedBlocks, toEditableBlocks, collectMediaUrlMap, type EditableBlock } from "@/components/broadcast/editable-block";
 import type { BroadcastBlock, BroadcastBlockType } from "@/lib/broadcast/blocks";
 
-const KNOWN_TYPES: BroadcastBlockType[] = ["text", "image", "video", "button", "imagemap", "flex"];
+const KNOWN_TYPES: BroadcastBlockType[] = ["text", "image", "video", "button", "flex"];
 
 function isPlausibleBlock(value: unknown): value is BroadcastBlock {
   return (

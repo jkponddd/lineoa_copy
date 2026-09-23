@@ -2,25 +2,24 @@
 
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { GripVertical, ChevronUp, ChevronDown, X, Type, Image as ImageIcon, Video, Link as LinkIcon, Map, LayoutTemplate, Plus } from "lucide-react";
+import { GripVertical, ChevronUp, ChevronDown, X, Type, Image as ImageIcon, Video, Link as LinkIcon, LayoutTemplate, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { ImagemapEditor } from "@/components/broadcast/imagemap-editor";
+import { ImageBlockFields } from "@/components/broadcast/image-block-fields";
 import { FlexEditor } from "@/components/broadcast/flex-editor";
 import { MAX_BLOCKS, createBlock, type BroadcastBlockType } from "@/lib/broadcast/blocks";
 import type { EditableBlock } from "@/components/broadcast/editable-block";
 import { cn } from "@/lib/utils";
 
-const BLOCK_TYPES: BroadcastBlockType[] = ["text", "image", "video", "button", "imagemap", "flex"];
+const BLOCK_TYPES: BroadcastBlockType[] = ["text", "image", "video", "button", "flex"];
 const BLOCK_ICON: Record<BroadcastBlockType, typeof Type> = {
   text: Type,
   image: ImageIcon,
   video: Video,
   button: LinkIcon,
-  imagemap: Map,
   flex: LayoutTemplate,
 };
 
@@ -69,7 +68,6 @@ export function BlockEditor({
     image: t("blockImage"),
     video: t("blockVideo"),
     button: t("blockButton"),
-    imagemap: t("blockImagemap"),
     flex: t("blockFlex"),
   };
 
@@ -78,19 +76,28 @@ export function BlockEditor({
       {blocks.map((block, index) => (
         <div
           key={block.id}
-          draggable={!disabled}
-          onDragStart={() => setDragIndex(index)}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault();
             if (dragIndex !== null) move(dragIndex, index);
             setDragIndex(null);
           }}
-          onDragEnd={() => setDragIndex(null)}
           className={cn("flex gap-2 rounded-lg border bg-card p-3", dragIndex === index && "opacity-50")}
         >
           <div className="flex flex-col items-center gap-1 pt-1 text-muted-foreground">
-            <GripVertical className="size-4 cursor-grab" />
+            {/* Only the handle itself is a native drag source — making the
+                whole card draggable hijacked pointer-drag gestures meant
+                for nested interactive editors (e.g. drawing an Imagemap
+                area), since a drag gesture starting anywhere inside a
+                draggable ancestor triggers that ancestor's drag instead. */}
+            <span
+              draggable={!disabled}
+              onDragStart={() => setDragIndex(index)}
+              onDragEnd={() => setDragIndex(null)}
+              className="cursor-grab"
+            >
+              <GripVertical className="size-4" />
+            </span>
             <button type="button" disabled={disabled || index === 0} onClick={() => move(index, index - 1)} aria-label={t("blockMoveUp")}>
               <ChevronUp className="size-3.5 disabled:opacity-30" />
             </button>
@@ -180,28 +187,7 @@ function BlockFields({
   }
 
   if (block.type === "image") {
-    return (
-      <div className="flex items-center gap-2">
-        {block._fileUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- local object URL or signed Storage URL preview
-          <img src={block._fileUrl} alt="" className="h-16 w-auto rounded border object-cover" />
-        ) : null}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/png,image/jpeg"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = "";
-            if (file) onChange({ _file: file, _fileUrl: URL.createObjectURL(file), mediaPath: "" });
-          }}
-        />
-        <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={() => fileInputRef.current?.click()}>
-          {block._fileUrl ? t("attachImageChange") : t("attachImage")}
-        </Button>
-      </div>
-    );
+    return <ImageBlockFields block={block} disabled={disabled} onChange={onChange} />;
   }
 
   if (block.type === "video") {
@@ -248,10 +234,6 @@ function BlockFields({
         </div>
       </div>
     );
-  }
-
-  if (block.type === "imagemap") {
-    return <ImagemapEditor block={block} disabled={disabled} onChange={onChange} />;
   }
 
   if (block.type === "flex") {
