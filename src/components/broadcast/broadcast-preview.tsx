@@ -6,6 +6,7 @@ import { ArrowLeft, MoreVertical, Camera } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { EditableBlock, EditableFlexComponent } from "@/components/broadcast/editable-block";
+import { captureElementAsPng } from "@/lib/capture-element";
 import { cn } from "@/lib/utils";
 
 const LINE_GREEN = "#06c755";
@@ -35,20 +36,7 @@ export function BroadcastPreviewPanel({
     if (!captureRef.current) return;
     setCapturing(true);
     try {
-      // modern-screenshot (SVG foreignObject-based) rather than html2canvas
-      // — html2canvas re-implements CSS parsing itself and can't handle the
-      // oklch()/lab() color functions this Tailwind v4 theme uses, throwing
-      // "unsupported color function" instead of capturing anything.
-      const { domToPng } = await import("modern-screenshot");
-      const dataUrl = await domToPng(captureRef.current, { scale: 2 });
-      const a = document.createElement("a");
-      a.href = dataUrl;
-      a.download = "broadcast-preview.png";
-      // Some browsers only reliably trigger the download when the anchor
-      // is actually attached to the document at click time.
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      await captureElementAsPng(captureRef.current, "broadcast-preview.png");
     } finally {
       setCapturing(false);
     }

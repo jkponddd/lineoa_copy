@@ -377,6 +377,8 @@
     "customLayoutHint": "Drag on the preview to draw a button, drag a corner to resize, tap × to remove.",
     "customLayoutEmpty": "No buttons yet — drag on the preview to draw the first one.",
     "previewTitle": "Preview",
+    "previewCapture": "Save as image",
+    "previewCapturing": "Capturing...",
     "areaUnlabeled": "(unnamed)",
     "imageLabel": "Background image",
     "imageHint": "Must be exactly {width}x{height} pixels.",

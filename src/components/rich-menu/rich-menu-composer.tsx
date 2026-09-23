@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
-import { Upload } from "lucide-react";
+import { Upload, Camera } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { LayoutPickerDialog } from "@/components/rich-menu/layout-picker-dialog"
 import { RichMenuPhonePreview } from "@/components/rich-menu/rich-menu-phone-preview";
 import { createClient } from "@/lib/supabase/client";
 import { createRichMenuAction } from "@/app/[locale]/(app)/app/rich-menu/actions";
+import { captureElementAsPng } from "@/lib/capture-element";
 import {
   computeTemplateAreaBoundsPercent,
   RICH_MENU_IMAGE_HEIGHT,
@@ -61,10 +62,22 @@ export function RichMenuComposer({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [capturing, setCapturing] = useState(false);
   const [pending, startTransition] = useTransition();
+  const captureRef = useRef<HTMLDivElement>(null);
 
   const channelById = new Map(channels.map((c) => [c.id, c.display_name]));
   const switchTargets = switchTargetsByChannel[channelId] ?? [];
+
+  async function handleCapture() {
+    if (!captureRef.current) return;
+    setCapturing(true);
+    try {
+      await captureElementAsPng(captureRef.current, "rich-menu-preview.png");
+    } finally {
+      setCapturing(false);
+    }
+  }
 
   function handleLayoutChange(nextLayout: RichMenuLayout) {
     setLayout(nextLayout);
@@ -318,15 +331,23 @@ export function RichMenuComposer({
       </div>
 
       <div className="lg:sticky lg:top-4 lg:self-start">
-        <p className="mb-2 text-center text-xs text-muted-foreground">{t("previewTitle")}</p>
-        <RichMenuPhonePreview
-          imageUrl={imagePreview}
-          areas={previewAreas}
-          editable={layout === "custom"}
-          onAreaChange={handleAreaBoundsChange}
-          onAreaCreate={handleAreaCreate}
-          onAreaDelete={handleAreaDelete}
-        />
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-xs font-medium text-muted-foreground">{t("previewTitle")}</p>
+          <Button type="button" size="sm" variant="outline" disabled={capturing} className="gap-1" onClick={handleCapture}>
+            <Camera className="size-3.5" />
+            {capturing ? t("previewCapturing") : t("previewCapture")}
+          </Button>
+        </div>
+        <div ref={captureRef}>
+          <RichMenuPhonePreview
+            imageUrl={imagePreview}
+            areas={previewAreas}
+            editable={layout === "custom"}
+            onAreaChange={handleAreaBoundsChange}
+            onAreaCreate={handleAreaCreate}
+            onAreaDelete={handleAreaDelete}
+          />
+        </div>
       </div>
     </div>
   );

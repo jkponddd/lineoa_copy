@@ -377,6 +377,8 @@
     "customLayoutHint": "ลากบนพรีวิวด้านขวาเพื่อวาดปุ่ม ลากมุมเพื่อปรับขนาด แตะ × เพื่อลบ",
     "customLayoutEmpty": "ยังไม่มีปุ่ม ลากบนพรีวิวเพื่อวาดปุ่มแรก",
     "previewTitle": "พรีวิว",
+    "previewCapture": "บันทึกเป็นรูปภาพ",
+    "previewCapturing": "กำลังแคปเจอร์...",
     "areaUnlabeled": "(ยังไม่ตั้งชื่อ)",
     "imageLabel": "รูปภาพพื้นหลัง",
     "imageHint": "ต้องมีขนาด {width}x{height} พิกเซลพอดี",

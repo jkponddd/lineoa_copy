@@ -908,3 +908,20 @@ User asked three follow-up questions about Step 22 that turned into real changes
 **Open items / not built yet**
 
 - Remaining open items across the whole project otherwise unchanged (see previous entries).
+
+---
+
+## 2026-09-23 (continued) — Phase 1, Step 24: Capture-to-image for Rich Menu's preview too
+
+Picked up the first item from Step 22's own "open items" list — Rich Menu's preview didn't have the same "save as image" button Broadcast's did, an inconsistency flagged as a natural follow-up at the time.
+
+**What was built**
+
+- `captureElementAsPng(element, filename, scale)` extracted into `src/lib/capture-element.ts` — the render-to-PNG-and-download logic was about to exist in two places verbatim; factored out once instead, and `BroadcastPreviewPanel` was updated to call it too rather than keeping its own copy.
+- `RichMenuComposer`'s preview panel gained the same header-row "บันทึกเป็นรูปภาพ" button as Broadcast's, wrapping `RichMenuPhonePreview` in a capture ref.
+
+**Verified against a live dev server**: clicked the button on `/app/rich-menu/new`, confirmed a real PNG downloads (checked the file signature and viewed it — a correct rendering of the phone mockup, including the "2500 × 1686" placeholder text for the not-yet-uploaded background image). `next build`, `tsc --noEmit`, `eslint` all clean.
+
+**Open items / not built yet**
+
+- Remaining open items across the whole project otherwise unchanged (see previous entries).
