@@ -3,7 +3,8 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { getLineChannelAccessTokenByChannelUuid } from "@/lib/line/get-channel-access-token";
 import { broadcastMessage, multicastMessage } from "@/lib/line/send-message";
-import { blocksToLineMessages, type BroadcastBlock } from "@/lib/broadcast/blocks";
+import { getSiteOrigin } from "@/lib/get-site-origin";
+import { blocksToLineMessages, blockMediaPaths, type BroadcastBlock } from "@/lib/broadcast/blocks";
 import type { LineMessage } from "@/lib/line/types";
 import type { BroadcastAudience } from "@/lib/supabase/database.types";
 
@@ -60,27 +61,33 @@ export async function performBroadcastSend(params: {
 // the same blocksToLineMessages algorithm client-side with local preview
 // URLs instead of signed ones.
 export async function buildBroadcastMessages(blocks: BroadcastBlock[]): Promise<LineMessage[]> {
-  const mediaPaths = new Set<string>();
-  for (const block of blocks) {
-    if (block.type === "image") mediaPaths.add(block.mediaPath);
-    if (block.type === "video") {
-      mediaPaths.add(block.mediaPath);
-      mediaPaths.add(block.previewMediaPath);
-    }
-  }
+  const pathEntries = blocks.flatMap((block) => blockMediaPaths(block));
+  const signedPaths = [...new Set(pathEntries.filter((e) => e.kind === "signed").map((e) => e.path))];
+  const publicPaths = [...new Set(pathEntries.filter((e) => e.kind === "public").map((e) => e.path))];
 
-  const signedUrlByPath = new Map<string, string>();
-  if (mediaPaths.size > 0) {
+  const urlByPath = new Map<string, string>();
+
+  if (signedPaths.length > 0) {
     const service = createServiceRoleClient();
     // Only needs to survive one immediate fetch by LINE's server, same
     // reasoning as the Inbox image reply's signed URL.
     await Promise.all(
-      [...mediaPaths].map(async (path) => {
+      signedPaths.map(async (path) => {
         const { data } = await service.storage.from("line-media").createSignedUrl(path, 3600);
-        if (data) signedUrlByPath.set(path, data.signedUrl);
+        if (data) urlByPath.set(path, data.signedUrl);
       }),
     );
   }
 
-  return blocksToLineMessages(blocks, (path) => signedUrlByPath.get(path) ?? null);
+  if (publicPaths.length > 0) {
+    // Imagemap's baseUrl: fetched by LINE's own servers, potentially long
+    // after send and repeatedly per requested width — needs a permanent
+    // public URL, not a signed one. See src/app/api/imagemap/[...path]/route.ts.
+    const origin = await getSiteOrigin();
+    for (const path of publicPaths) {
+      urlByPath.set(path, `${origin}/api/imagemap/${path}`);
+    }
+  }
+
+  return blocksToLineMessages(blocks, (path) => urlByPath.get(path) ?? null);
 }

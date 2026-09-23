@@ -13,8 +13,9 @@ import { BlockEditor } from "@/components/broadcast/block-editor";
 import { BroadcastPreviewPanel } from "@/components/broadcast/broadcast-preview";
 import { TestSendDialog } from "@/components/broadcast/test-send-dialog";
 import type { BroadcastContact } from "@/components/broadcast/contact-picker-dialog";
-import { toPersistedBlocks, type EditableBlock } from "@/components/broadcast/editable-block";
+import { toPersistedBlocks, toEditableBlocks, type EditableBlock, type EditableFlexComponent } from "@/components/broadcast/editable-block";
 import { createBlock, blocksAreValid, type BroadcastBlock } from "@/lib/broadcast/blocks";
+import { JsonEditorDialog } from "@/components/broadcast/json-editor-dialog";
 import {
   sendBroadcast,
   saveBroadcastDraft,
@@ -41,16 +42,6 @@ export type InitialComposerValues = {
 
 const AUDIENCE_OPTIONS: BroadcastAudience[] = ["all", "conversations"];
 
-function toEditableBlocks(blocks: BroadcastBlock[], mediaUrlByPath: Record<string, string>): EditableBlock[] {
-  return blocks.map((block) => {
-    if (block.type === "image") return { ...block, _fileUrl: mediaUrlByPath[block.mediaPath] };
-    if (block.type === "video") {
-      return { ...block, _fileUrl: mediaUrlByPath[block.mediaPath], _previewFileUrl: mediaUrlByPath[block.previewMediaPath] };
-    }
-    return block;
-  });
-}
-
 export function BroadcastComposer({
   channels,
   organizationId,
@@ -76,6 +67,7 @@ export function BroadcastComposer({
   const [sentState, setSentState] = useState<"immediate" | "scheduled" | null>(null);
   const [draftSavedState, setDraftSavedState] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [jsonDialogOpen, setJsonDialogOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [draftPending, startDraftTransition] = useTransition();
   // Lazy-initialized once — reading the clock during render is impure and
@@ -102,19 +94,37 @@ export function BroadcastComposer({
     return uploadError ? null : path;
   }
 
+  // Recursively uploads any newly-picked (not-yet-uploaded) image file
+  // inside a flex component tree — a flex bubble's image components carry
+  // their own pending uploads exactly like a top-level image block does.
+  async function ensureFlexComponentUploaded(component: EditableFlexComponent): Promise<EditableFlexComponent | null> {
+    if (component.type === "box") {
+      const children: EditableFlexComponent[] = [];
+      for (const child of component.children) {
+        const resolved = await ensureFlexComponentUploaded(child);
+        if (!resolved) return null;
+        children.push(resolved);
+      }
+      return { ...component, children };
+    }
+    if (component.type === "image" && component._file) {
+      const path = await uploadFile(component._file, "jpg");
+      if (!path) return null;
+      return { ...component, mediaPath: path, _file: undefined };
+    }
+    return component;
+  }
+
   // Uploads any newly-picked (not-yet-uploaded) image/video files the
   // first time they're actually needed — submit, save draft, or test send
   // — rather than eagerly on selection. Returns null on any upload
   // failure. Resolved paths are written back into local state so a later
   // submit in the same session doesn't re-upload the same file.
   async function ensureBlocksUploaded(): Promise<BroadcastBlock[] | null> {
-    const needsUpload = blocks.some((b) => b._file || b._previewFile);
-    if (!needsUpload) return toPersistedBlocks(blocks);
-
     setUploading(true);
     const resolved: EditableBlock[] = [];
     for (const block of blocks) {
-      if (block.type === "image" && block._file) {
+      if ((block.type === "image" || block.type === "imagemap") && block._file) {
         const path = await uploadFile(block._file, "jpg");
         if (!path) {
           setUploading(false);
@@ -143,6 +153,30 @@ export function BroadcastComposer({
           previewMediaPath = path;
         }
         resolved.push({ ...block, mediaPath, previewMediaPath, _file: undefined, _previewFile: undefined });
+        continue;
+      }
+      if (block.type === "flex") {
+        const hero = block.hero ? await ensureFlexComponentUploaded(block.hero) : null;
+        if (block.hero && !hero) {
+          setUploading(false);
+          return null;
+        }
+        const body = await ensureFlexComponentUploaded(block.body);
+        if (!body) {
+          setUploading(false);
+          return null;
+        }
+        const footer = block.footer ? await ensureFlexComponentUploaded(block.footer) : null;
+        if (block.footer && !footer) {
+          setUploading(false);
+          return null;
+        }
+        resolved.push({
+          ...block,
+          hero: hero as (EditableFlexComponent & { type: "image" }) | null,
+          body: body as EditableFlexComponent & { type: "box" },
+          footer: footer as (EditableFlexComponent & { type: "box" }) | null,
+        });
         continue;
       }
       resolved.push(block);
@@ -353,8 +387,10 @@ export function BroadcastComposer({
           </div>
         </div>
 
-        <BroadcastPreviewPanel blocks={blocks} />
+        <BroadcastPreviewPanel blocks={blocks} channelName={channelById.get(channelId)} onOpenJson={() => setJsonDialogOpen(true)} />
       </div>
+
+      <JsonEditorDialog open={jsonDialogOpen} onOpenChange={setJsonDialogOpen} blocks={blocks} onApply={setBlocks} />
     </div>
   );
 }

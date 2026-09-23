@@ -2,18 +2,27 @@
 
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { GripVertical, ChevronUp, ChevronDown, X, Type, Image as ImageIcon, Video, Link as LinkIcon, Plus } from "lucide-react";
+import { GripVertical, ChevronUp, ChevronDown, X, Type, Image as ImageIcon, Video, Link as LinkIcon, Map, LayoutTemplate, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { ImagemapEditor } from "@/components/broadcast/imagemap-editor";
+import { FlexEditor } from "@/components/broadcast/flex-editor";
 import { MAX_BLOCKS, createBlock, type BroadcastBlockType } from "@/lib/broadcast/blocks";
 import type { EditableBlock } from "@/components/broadcast/editable-block";
 import { cn } from "@/lib/utils";
 
-const BLOCK_TYPES: BroadcastBlockType[] = ["text", "image", "video", "button"];
-const BLOCK_ICON: Record<BroadcastBlockType, typeof Type> = { text: Type, image: ImageIcon, video: Video, button: LinkIcon };
+const BLOCK_TYPES: BroadcastBlockType[] = ["text", "image", "video", "button", "imagemap", "flex"];
+const BLOCK_ICON: Record<BroadcastBlockType, typeof Type> = {
+  text: Type,
+  image: ImageIcon,
+  video: Video,
+  button: LinkIcon,
+  imagemap: Map,
+  flex: LayoutTemplate,
+};
 
 // A small, dependency-free reorderable list — pointer-based drag (same
 // technique as RichMenuPhonePreview's area editor) for the "drag to
@@ -60,6 +69,8 @@ export function BlockEditor({
     image: t("blockImage"),
     video: t("blockVideo"),
     button: t("blockButton"),
+    imagemap: t("blockImagemap"),
+    flex: t("blockFlex"),
   };
 
   return (
@@ -237,6 +248,14 @@ function BlockFields({
         </div>
       </div>
     );
+  }
+
+  if (block.type === "imagemap") {
+    return <ImagemapEditor block={block} disabled={disabled} onChange={onChange} />;
+  }
+
+  if (block.type === "flex") {
+    return <FlexEditor block={block} disabled={disabled} onChange={onChange} />;
   }
 
   // button

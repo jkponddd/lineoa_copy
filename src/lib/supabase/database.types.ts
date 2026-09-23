@@ -8,20 +8,18 @@
 // correctly. Omitting them doesn't error here; it silently makes every
 // query resolve to `never` instead.
 
+// BroadcastBlock is imported (not duplicated) from its actual source of
+// truth — the shape and the block->LINE-message conversion both live
+// there — and re-exported so the two can never drift apart.
+import type { BroadcastBlock } from "@/lib/broadcast/blocks";
+export type { BroadcastBlock };
+
 export type OrgRole = "owner" | "agent" | "analyst";
 export type MessageDirection = "inbound" | "outbound";
 export type MessageType = "text" | "image" | "sticker" | "file";
 export type ConversationStatus = "open" | "closed";
 export type BroadcastStatus = "draft" | "scheduled" | "sending" | "sent" | "failed";
 export type BroadcastAudience = "all" | "conversations";
-// Kept in sync with src/lib/broadcast/blocks.ts's BroadcastBlock — that
-// file is the source of truth for the shape and the block->LINE-message
-// conversion; this is just the jsonb column's type for query results.
-export type BroadcastBlock =
-  | { id: string; type: "text"; text: string }
-  | { id: string; type: "image"; mediaPath: string }
-  | { id: string; type: "video"; mediaPath: string; previewMediaPath: string }
-  | { id: string; type: "button"; label: string; url: string };
 export type RichMenuLayout = "1x1" | "2x1" | "3x1" | "2x2" | "3x2" | "custom";
 export type RichMenuStatus = "published" | "failed";
 export type RichMenuActionType = "message" | "uri" | "richmenuswitch";
