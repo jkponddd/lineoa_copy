@@ -3,9 +3,7 @@ import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentMembership } from "@/lib/supabase/get-current-membership";
 import { AddMemberSheet } from "@/components/admin/add-member-sheet";
-import { MemberRoleSelect } from "@/components/admin/member-role-select";
-import { RemoveMemberButton } from "@/components/admin/remove-member-button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { UsersTable } from "@/components/admin/users-table";
 import type { OrgRole } from "@/lib/supabase/database.types";
 
 type MemberRow = {
@@ -41,36 +39,7 @@ function UsersView({ members, currentUserId }: { members: MemberRow[]; currentUs
         <AddMemberSheet />
       </div>
 
-      <div className="rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("tableEmail")}</TableHead>
-              <TableHead>{t("tableName")}</TableHead>
-              <TableHead>{t("tableRole")}</TableHead>
-              <TableHead>{t("tableJoined")}</TableHead>
-              <TableHead className="text-right" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {members.map((member) => (
-              <TableRow key={member.id}>
-                <TableCell className="font-medium">{member.email}</TableCell>
-                <TableCell className="text-muted-foreground">{member.full_name || "—"}</TableCell>
-                <TableCell>
-                  <MemberRoleSelect memberId={member.id} initialRole={member.role} />
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {new Date(member.created_at).toLocaleDateString()}
-                </TableCell>
-                <TableCell className="text-right">
-                  {member.user_id !== currentUserId ? <RemoveMemberButton memberId={member.id} /> : null}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <UsersTable members={members} currentUserId={currentUserId} />
     </div>
   );
 }

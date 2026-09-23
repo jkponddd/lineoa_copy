@@ -925,3 +925,26 @@ Picked up the first item from Step 22's own "open items" list — Rich Menu's pr
 **Open items / not built yet**
 
 - Remaining open items across the whole project otherwise unchanged (see previous entries).
+
+---
+
+## 2026-09-23 (continued) — Phase 1, Step 25: Filter/search/sort for the remaining Admin list pages
+
+Continuing Step 21's list-first pattern to the rest of the Admin Panel, scoped via `AskUserQuestion` to just adding filter/search/sort (not restructuring create flows into separate `/new` routes — Users/Tags already use a Sheet-based add flow, which doesn't have the composer-and-list-crammed-together problem Rich Menu/Broadcast had).
+
+**What was built**
+
+- **Users** (`UsersTable`): search by email/name, role filter (all/owner/agent/analyst), newest/oldest sort.
+- **Tags** (`TagManager`): search by name only — a flat wrapped badge list already sorted alphabetically by the query, so no separate sort control; filter doesn't apply (no categorical dimension).
+- **Audit Log** (`AuditLogTable`): search by actor or target, an action-type filter (all 8 known action kinds), newest/oldest sort — the strongest candidate of the four, since this table only grows over time.
+- **LINE Channels — deliberately skipped**: an org typically has 1-3 connected channels (each requires a real external LINE OA signup), so filter/search UI here would be pure clutter with no real value at this scale.
+
+**Verified against the live database and a live dev server**
+
+- Users: confirmed the search input filters the live table (owner/agent/analyst test accounts), and clearing it restores the full list.
+- Tags and Audit Log were empty in the live DB, so seeded two real tags and two real audit_log rows via the service role to verify the filter UIs render and actually filter (not just that the controls exist) — confirmed search narrows the tag list correctly (including the "no matches" empty state), and confirmed the audit log's action-type filter correctly shows only matching entries and hides non-matching ones. All seeded test data cleaned up afterward; confirmed empty again.
+- `next build`, `tsc --noEmit`, `eslint` all clean throughout.
+
+**Open items / not built yet**
+
+- Remaining open items across the whole project otherwise unchanged (see previous entries).

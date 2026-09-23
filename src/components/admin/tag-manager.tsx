@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { Plus, Trash2, Tag as TagIcon } from "lucide-react";
 
@@ -31,6 +31,12 @@ export function TagManager({ organizationId, tags }: { organizationId: string; t
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  const filteredTags = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return q ? tags.filter((tag) => tag.name.toLowerCase().includes(q)) : tags;
+  }, [tags, search]);
 
   function submitCreate() {
     const trimmed = name.trim();
@@ -123,21 +129,28 @@ export function TagManager({ organizationId, tags }: { organizationId: string; t
           {t("empty")}
         </div>
       ) : (
-        <div className="flex flex-wrap gap-2">
-          {tags.map((tag) => (
-            <div key={tag.id} className="flex items-center gap-1 rounded-full border pl-1 pr-1">
-              <TagBadge name={tag.name} color={tag.color} className="border-none" />
-              <button
-                type="button"
-                disabled={pending && deletingId === tag.id}
-                onClick={() => handleDelete(tag.id)}
-                aria-label={t("deleteButton")}
-                className="flex size-5 items-center justify-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
-              >
-                <Trash2 className="size-3" />
-              </button>
+        <div className="flex flex-col gap-3">
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("searchPlaceholder")} className="w-full sm:w-56" />
+          {filteredTags.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t("filterEmpty")}</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {filteredTags.map((tag) => (
+                <div key={tag.id} className="flex items-center gap-1 rounded-full border pl-1 pr-1">
+                  <TagBadge name={tag.name} color={tag.color} className="border-none" />
+                  <button
+                    type="button"
+                    disabled={pending && deletingId === tag.id}
+                    onClick={() => handleDelete(tag.id)}
+                    aria-label={t("deleteButton")}
+                    className="flex size-5 items-center justify-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                  >
+                    <Trash2 className="size-3" />
+                  </button>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
       )}
     </div>
