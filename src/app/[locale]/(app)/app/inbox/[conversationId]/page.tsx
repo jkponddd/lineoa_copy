@@ -8,6 +8,7 @@ import { getCurrentMembership } from "@/lib/supabase/get-current-membership";
 import { RealtimeRefresh } from "@/components/inbox/realtime-refresh";
 import { AssignSelect } from "@/components/inbox/assign-select";
 import { StatusToggle } from "@/components/inbox/status-toggle";
+import { ConversationTags } from "@/components/inbox/conversation-tags";
 import { MessageThread } from "@/components/inbox/message-thread";
 import { ReplyComposer } from "@/components/inbox/reply-composer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -30,22 +31,28 @@ export default async function InboxThreadPage({ params }: { params: Promise<{ co
 
   const supabase = await createClient();
 
-  const [{ data: conversation }, { data: messages }, { data: members }] = await Promise.all([
-    supabase
-      .from("conversations")
-      .select("id, line_user_id, display_name, picture_url, assigned_to, status")
-      .eq("id", conversationId)
-      .maybeSingle(),
-    supabase
-      .from("messages")
-      .select("id, direction, type, content, media_path, created_at")
-      .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: true })
-      .returns<MessageRow[]>(),
-    supabase.rpc("get_organization_members", { p_organization_id: membership.organization.id }),
-  ]);
+  const [{ data: conversation }, { data: messages }, { data: members }, { data: allTags }, { data: conversationTagRows }] =
+    await Promise.all([
+      supabase
+        .from("conversations")
+        .select("id, line_user_id, display_name, picture_url, assigned_to, status")
+        .eq("id", conversationId)
+        .maybeSingle(),
+      supabase
+        .from("messages")
+        .select("id, direction, type, content, media_path, created_at")
+        .eq("conversation_id", conversationId)
+        .order("created_at", { ascending: true })
+        .returns<MessageRow[]>(),
+      supabase.rpc("get_organization_members", { p_organization_id: membership.organization.id }),
+      supabase.from("tags").select("id, name, color").eq("organization_id", membership.organization.id).order("name"),
+      supabase.from("conversation_tags").select("tag_id").eq("conversation_id", conversationId),
+    ]);
 
   if (!conversation) notFound();
+
+  const assignedTagIds = new Set((conversationTagRows ?? []).map((row) => row.tag_id));
+  const assignedTags = (allTags ?? []).filter((tag) => assignedTagIds.has(tag.id));
 
   const rows = messages ?? [];
   // Both "image" and "file" messages carry their bytes in Storage; sticker
@@ -70,6 +77,8 @@ export default async function InboxThreadPage({ params }: { params: Promise<{ co
       <ThreadHeader
         conversation={conversation}
         members={members ?? []}
+        allTags={allTags ?? []}
+        assignedTags={assignedTags}
       />
 
       <MessageThread
@@ -87,6 +96,8 @@ export default async function InboxThreadPage({ params }: { params: Promise<{ co
 function ThreadHeader({
   conversation,
   members,
+  allTags,
+  assignedTags,
 }: {
   conversation: {
     id: string;
@@ -96,6 +107,8 @@ function ThreadHeader({
     status: ConversationStatus;
   };
   members: { user_id: string; role: string; email: string; full_name: string | null }[];
+  allTags: { id: string; name: string; color: string }[];
+  assignedTags: { id: string; name: string; color: string }[];
 }) {
   const t = useTranslations("inbox");
   const name = conversation.display_name || t("unknownUser");
@@ -116,9 +129,12 @@ function ThreadHeader({
         </Avatar>
         <p className="min-w-0 flex-1 truncate font-medium">{name}</p>
       </div>
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <AssignSelect conversationId={conversation.id} assignedTo={conversation.assigned_to} members={members} />
-        <StatusToggle conversationId={conversation.id} status={conversation.status} />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <ConversationTags conversationId={conversation.id} assignedTags={assignedTags} allTags={allTags} />
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <AssignSelect conversationId={conversation.id} assignedTo={conversation.assigned_to} members={members} />
+          <StatusToggle conversationId={conversation.id} status={conversation.status} />
+        </div>
       </div>
     </div>
   );

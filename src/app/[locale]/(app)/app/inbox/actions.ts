@@ -196,3 +196,27 @@ export async function updateConversationStatusAction(
   revalidatePath("/app/inbox");
   return { error: null };
 }
+
+export async function assignTagToConversationAction(conversationId: string, tagId: string): Promise<InboxActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("conversation_tags").insert({ conversation_id: conversationId, tag_id: tagId });
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/app/inbox");
+  return { error: null };
+}
+
+export async function removeTagFromConversationAction(conversationId: string, tagId: string): Promise<InboxActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("conversation_tags")
+    .delete()
+    .eq("conversation_id", conversationId)
+    .eq("tag_id", tagId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/app/inbox");
+  return { error: null };
+}

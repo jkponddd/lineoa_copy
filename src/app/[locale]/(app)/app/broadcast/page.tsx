@@ -2,18 +2,23 @@ import { useTranslations } from "next-intl";
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentMembership } from "@/lib/supabase/get-current-membership";
-import { BroadcastComposer } from "@/components/broadcast/broadcast-composer";
+import { BroadcastComposer, type InitialDraft } from "@/components/broadcast/broadcast-composer";
+import type { BroadcastContact } from "@/components/broadcast/contact-picker-dialog";
 import { CancelBroadcastButton } from "@/components/broadcast/cancel-broadcast-button";
+import { DeleteDraftButton } from "@/components/broadcast/delete-draft-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link } from "@/i18n/navigation";
-import type { BroadcastAudience, BroadcastStatus } from "@/lib/supabase/database.types";
+import type { BroadcastAudience, BroadcastStatus, BroadcastTemplate } from "@/lib/supabase/database.types";
 
 type BroadcastRow = {
   id: string;
+  template: BroadcastTemplate;
   content: string | null;
   image_media_path: string | null;
+  link_url: string | null;
+  link_label: string | null;
   audience: BroadcastAudience;
   scheduled_at: string | null;
   status: BroadcastStatus;
@@ -24,34 +29,60 @@ type BroadcastRow = {
 };
 
 const STATUS_BADGE_VARIANT: Record<BroadcastStatus, "default" | "destructive" | "outline" | "secondary"> = {
+  draft: "secondary",
   scheduled: "outline",
   sending: "secondary",
   sent: "default",
   failed: "destructive",
 };
 
-export default async function BroadcastPage() {
+export default async function BroadcastPage({ searchParams }: { searchParams: Promise<{ draft?: string }> }) {
+  const { draft: draftId } = await searchParams;
+
   const membership = await getCurrentMembership();
   if (!membership) return null;
 
   const supabase = await createClient();
   const orgId = membership.organization.id;
 
-  const [{ data: channels }, { data: history }, { data: members }] = await Promise.all([
-    supabase.from("line_channels").select("id, display_name").eq("organization_id", orgId),
-    supabase
-      .from("broadcasts")
-      .select(
-        "id, content, image_media_path, audience, scheduled_at, status, error_message, sent_by, created_at, line_channel_id",
-      )
-      .eq("organization_id", orgId)
-      .order("created_at", { ascending: false })
-      .returns<BroadcastRow[]>(),
-    supabase.rpc("get_organization_members", { p_organization_id: orgId }),
-  ]);
+  const [{ data: channels }, { data: history }, { data: members }, { data: conversationRows }, { data: tags }, { data: conversationTagRows }] =
+    await Promise.all([
+      supabase.from("line_channels").select("id, display_name").eq("organization_id", orgId),
+      supabase
+        .from("broadcasts")
+        .select(
+          "id, template, content, image_media_path, link_url, link_label, audience, scheduled_at, status, error_message, sent_by, created_at, line_channel_id",
+        )
+        .eq("organization_id", orgId)
+        .order("created_at", { ascending: false })
+        .returns<BroadcastRow[]>(),
+      supabase.rpc("get_organization_members", { p_organization_id: orgId }),
+      supabase.from("conversations").select("id, line_channel_id, line_user_id, display_name, picture_url").eq("organization_id", orgId),
+      supabase.from("tags").select("id, name, color").eq("organization_id", orgId).order("name"),
+      supabase.from("conversation_tags").select("conversation_id, tag_id"),
+    ]);
 
   const channelNameById = new Map((channels ?? []).map((c) => [c.id, c.display_name]));
   const memberById = new Map((members ?? []).map((m) => [m.user_id, m]));
+  const tagById = new Map((tags ?? []).map((tag) => [tag.id, tag]));
+
+  const tagIdsByConversation = new Map<string, string[]>();
+  for (const row of conversationTagRows ?? []) {
+    const list = tagIdsByConversation.get(row.conversation_id) ?? [];
+    list.push(row.tag_id);
+    tagIdsByConversation.set(row.conversation_id, list);
+  }
+
+  const contacts: BroadcastContact[] = (conversationRows ?? []).map((c) => ({
+    lineUserId: c.line_user_id,
+    lineChannelId: c.line_channel_id,
+    displayName: c.display_name,
+    pictureUrl: c.picture_url,
+    tags: (tagIdsByConversation.get(c.id) ?? []).flatMap((tagId) => {
+      const tag = tagById.get(tagId);
+      return tag ? [tag] : [];
+    }),
+  }));
 
   const imagePaths = (history ?? []).filter((b) => b.image_media_path).map((b) => b.image_media_path as string);
   const signedUrlByPath = new Map<string, string>();
@@ -64,10 +95,27 @@ export default async function BroadcastPage() {
     );
   }
 
+  const draftRow = draftId ? (history ?? []).find((b) => b.id === draftId && b.status === "draft") : null;
+  const initialDraft: InitialDraft | null = draftRow
+    ? {
+        id: draftRow.id,
+        lineChannelId: draftRow.line_channel_id,
+        template: draftRow.template,
+        content: draftRow.content,
+        imageMediaPath: draftRow.image_media_path,
+        imageUrl: draftRow.image_media_path ? (signedUrlByPath.get(draftRow.image_media_path) ?? null) : null,
+        linkUrl: draftRow.link_url,
+        linkLabel: draftRow.link_label,
+        audience: draftRow.audience,
+      }
+    : null;
+
   return (
     <BroadcastView
       channels={channels ?? []}
       organizationId={orgId}
+      contacts={contacts}
+      initialDraft={initialDraft}
       history={history ?? []}
       channelNameById={channelNameById}
       memberById={memberById}
@@ -79,6 +127,8 @@ export default async function BroadcastPage() {
 function BroadcastView({
   channels,
   organizationId,
+  contacts,
+  initialDraft,
   history,
   channelNameById,
   memberById,
@@ -86,6 +136,8 @@ function BroadcastView({
 }: {
   channels: { id: string; display_name: string }[];
   organizationId: string;
+  contacts: BroadcastContact[];
+  initialDraft: InitialDraft | null;
   history: BroadcastRow[];
   channelNameById: Map<string, string>;
   memberById: Map<string, { full_name: string | null; email: string }>;
@@ -102,7 +154,7 @@ function BroadcastView({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">{t("composerTitle")}</CardTitle>
+          <CardTitle className="text-base">{initialDraft ? t("editingDraftTitle") : t("composerTitle")}</CardTitle>
         </CardHeader>
         <CardContent>
           {channels.length === 0 ? (
@@ -113,7 +165,7 @@ function BroadcastView({
               </Link>
             </div>
           ) : (
-            <BroadcastComposer channels={channels} organizationId={organizationId} />
+            <BroadcastComposer channels={channels} organizationId={organizationId} contacts={contacts} initialDraft={initialDraft} />
           )}
         </CardContent>
       </Card>
@@ -143,6 +195,7 @@ function BroadcastView({
                   const sender = broadcast.sent_by ? memberById.get(broadcast.sent_by) : null;
                   const imageUrl = broadcast.image_media_path ? signedUrlByPath.get(broadcast.image_media_path) : null;
                   const isScheduled = broadcast.status === "scheduled";
+                  const isDraft = broadcast.status === "draft";
 
                   return (
                     <TableRow key={broadcast.id}>
@@ -164,7 +217,7 @@ function BroadcastView({
                             // eslint-disable-next-line @next/next/no-img-element -- private, signed Storage URL
                             <img src={imageUrl} alt={t("imagePreviewAlt")} className="size-8 shrink-0 rounded object-cover" />
                           ) : null}
-                          <span className="truncate">{broadcast.content ?? t("imageOnlyLabel")}</span>
+                          <span className="truncate">{broadcast.content ?? broadcast.link_label ?? t("imageOnlyLabel")}</span>
                         </div>
                       </TableCell>
                       <TableCell>{sender ? sender.full_name || sender.email : "—"}</TableCell>
@@ -174,7 +227,20 @@ function BroadcastView({
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        {isScheduled ? <CancelBroadcastButton broadcastId={broadcast.id} /> : null}
+                        <div className="flex justify-end gap-2">
+                          {isDraft ? (
+                            <>
+                              <Link
+                                href={`/app/broadcast?draft=${broadcast.id}`}
+                                className="text-sm text-primary underline-offset-4 hover:underline"
+                              >
+                                {t("editDraftButton")}
+                              </Link>
+                              <DeleteDraftButton broadcastId={broadcast.id} />
+                            </>
+                          ) : null}
+                          {isScheduled ? <CancelBroadcastButton broadcastId={broadcast.id} /> : null}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );

@@ -12,8 +12,9 @@ export type OrgRole = "owner" | "agent" | "analyst";
 export type MessageDirection = "inbound" | "outbound";
 export type MessageType = "text" | "image" | "sticker" | "file";
 export type ConversationStatus = "open" | "closed";
-export type BroadcastStatus = "scheduled" | "sending" | "sent" | "failed";
+export type BroadcastStatus = "draft" | "scheduled" | "sending" | "sent" | "failed";
 export type BroadcastAudience = "all" | "conversations";
+export type BroadcastTemplate = "text" | "image_text" | "image_link";
 export type RichMenuLayout = "1x1" | "2x1" | "3x1" | "2x2" | "3x2" | "custom";
 export type RichMenuStatus = "published" | "failed";
 export type RichMenuActionType = "message" | "uri" | "richmenuswitch";
@@ -177,8 +178,11 @@ export type Database = {
           id: string;
           organization_id: string;
           line_channel_id: string;
+          template: BroadcastTemplate;
           content: string | null;
           image_media_path: string | null;
+          link_url: string | null;
+          link_label: string | null;
           audience: BroadcastAudience;
           scheduled_at: string | null;
           status: BroadcastStatus;
@@ -186,14 +190,33 @@ export type Database = {
           sent_by: string | null;
           created_at: string;
         };
-        // No direct insert: rows are only ever created by record_broadcast().
-        // Direct update IS allowed (unlike other tables here) — only for
-        // status/error_message, by the service-role scheduled-send route
-        // claiming and resolving a queued broadcast, which has no user
-        // session to run a SECURITY DEFINER function's is_org_member()
-        // check against anyway.
+        // No direct insert: rows are only ever created by record_broadcast()
+        // and updated in place (draft edits, send-from-draft) by
+        // update_broadcast(). Direct update IS still allowed (unlike other
+        // tables here) — only for status/error_message, by the service-role
+        // scheduled-send route claiming and resolving a queued broadcast,
+        // which has no user session to run a SECURITY DEFINER function's
+        // is_org_member() check against anyway.
         Insert: never;
         Update: { status?: BroadcastStatus; error_message?: string | null };
+        Relationships: [];
+      };
+      tags: {
+        Row: {
+          id: string;
+          organization_id: string;
+          name: string;
+          color: string;
+          created_at: string;
+        };
+        Insert: { id?: string; organization_id: string; name: string; color?: string; created_at?: string };
+        Update: { name?: string; color?: string };
+        Relationships: [];
+      };
+      conversation_tags: {
+        Row: { conversation_id: string; tag_id: string; created_at: string };
+        Insert: { conversation_id: string; tag_id: string; created_at?: string };
+        Update: never;
         Relationships: [];
       };
       rich_menus: {
@@ -311,8 +334,11 @@ export type Database = {
       record_broadcast: {
         Args: {
           p_line_channel_id: string;
+          p_template: BroadcastTemplate;
           p_content: string | null;
           p_image_media_path: string | null;
+          p_link_url: string | null;
+          p_link_label: string | null;
           p_audience: BroadcastAudience;
           p_scheduled_at: string | null;
           p_status: BroadcastStatus;
@@ -320,6 +346,26 @@ export type Database = {
           p_sent_by: string | null;
         };
         Returns: Database["public"]["Tables"]["broadcasts"]["Row"];
+      };
+      update_broadcast: {
+        Args: {
+          p_broadcast_id: string;
+          p_line_channel_id: string;
+          p_template: BroadcastTemplate;
+          p_content: string | null;
+          p_image_media_path: string | null;
+          p_link_url: string | null;
+          p_link_label: string | null;
+          p_audience: BroadcastAudience;
+          p_scheduled_at: string | null;
+          p_status: BroadcastStatus;
+          p_error_message: string | null;
+        };
+        Returns: Database["public"]["Tables"]["broadcasts"]["Row"];
+      };
+      delete_broadcast_draft: {
+        Args: { p_broadcast_id: string };
+        Returns: undefined;
       };
       cancel_scheduled_broadcast: {
         Args: { p_broadcast_id: string };
