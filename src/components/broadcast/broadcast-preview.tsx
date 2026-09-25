@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { ArrowLeft, MoreVertical, Camera } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import type { EditableBlock, EditableFlexComponent } from "@/components/broadcast/editable-block";
+import type { EditableBlock, EditableFlexComponent, EditableFlexBubble } from "@/components/broadcast/editable-block";
 import { captureElementAsPng } from "@/lib/capture-element";
 import { cn } from "@/lib/utils";
 
@@ -144,17 +144,16 @@ function BlockBubble({ block }: { block: EditableBlock }) {
   }
 
   if (block.type === "flex") {
+    if (block.bubbles.length <= 1) {
+      return <FlexBubblePreview bubble={block.bubbles[0]} className="w-full" />;
+    }
+    // A carousel — horizontal scroll-snap, matching LINE's own swipeable
+    // presentation, rather than only ever showing the first card.
     return (
-      <div className="w-full overflow-hidden rounded-lg rounded-tl-sm border border-border bg-background">
-        {block.hero ? <FlexComponentPreview component={block.hero} /> : null}
-        <div className="flex flex-col gap-1.5 p-2">
-          <FlexComponentPreview component={block.body} />
-        </div>
-        {block.footer ? (
-          <div className="flex flex-col gap-1.5 border-t border-border p-2">
-            <FlexComponentPreview component={block.footer} />
-          </div>
-        ) : null}
+      <div className="-mx-1 flex w-[calc(100%+0.5rem)] snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-1">
+        {block.bubbles.map((bubble) => (
+          <FlexBubblePreview key={bubble.id} bubble={bubble} className="w-[85%] shrink-0 snap-start" />
+        ))}
       </div>
     );
   }
@@ -163,6 +162,22 @@ function BlockBubble({ block }: { block: EditableBlock }) {
   return (
     <div className="w-full rounded-md border border-border py-1.5 text-center text-xs font-medium text-primary">
       {block.label.trim() || t("linkLabelPlaceholder")}
+    </div>
+  );
+}
+
+function FlexBubblePreview({ bubble, className }: { bubble: EditableFlexBubble; className?: string }) {
+  return (
+    <div className={cn("overflow-hidden rounded-lg rounded-tl-sm border border-border bg-background", className)}>
+      {bubble.hero ? <FlexComponentPreview component={bubble.hero} /> : null}
+      <div className="flex flex-col gap-1.5 p-2">
+        <FlexComponentPreview component={bubble.body} />
+      </div>
+      {bubble.footer ? (
+        <div className="flex flex-col gap-1.5 border-t border-border p-2">
+          <FlexComponentPreview component={bubble.footer} />
+        </div>
+      ) : null}
     </div>
   );
 }

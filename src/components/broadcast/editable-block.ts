@@ -1,4 +1,4 @@
-import type { BroadcastBlock, FlexComponent, FlexBoxLayout, FlexTextSize, FlexTextWeight, FlexTextAlign, FlexAction, FlexButtonStyle } from "@/lib/broadcast/blocks";
+import type { BroadcastBlock, FlexComponent, FlexBoxLayout, FlexTextSize, FlexTextWeight, FlexTextAlign, FlexAction, FlexButtonStyle, FlexBubble } from "@/lib/broadcast/blocks";
 import { blocksToLineMessages } from "@/lib/broadcast/blocks";
 import type { LineMessage } from "@/lib/line/types";
 
@@ -11,6 +11,13 @@ export type EditableFlexComponent =
   | { id: string; type: "button"; action: FlexAction; style: FlexButtonStyle }
   | { id: string; type: "separator" };
 
+export type EditableFlexBubble = {
+  id: string;
+  hero: Extract<EditableFlexComponent, { type: "image" }> | null;
+  body: Extract<EditableFlexComponent, { type: "box" }>;
+  footer: Extract<EditableFlexComponent, { type: "box" }> | null;
+};
+
 // A block plus client-only editing state riding along in the same object —
 // `_file`/`_previewFile` are picked-but-not-yet-uploaded Storage uploads,
 // `_fileUrl`/`_previewFileUrl` are whatever's currently displayable (a
@@ -22,16 +29,24 @@ export type EditableBlock =
   | (Extract<BroadcastBlock, { type: "image" }> & { _file?: File; _fileUrl?: string })
   | (Extract<BroadcastBlock, { type: "video" }> & { _file?: File; _previewFile?: File; _fileUrl?: string; _previewFileUrl?: string })
   | Extract<BroadcastBlock, { type: "button" }>
-  | (Omit<Extract<BroadcastBlock, { type: "flex" }>, "hero" | "body" | "footer"> & {
-      hero: Extract<EditableFlexComponent, { type: "image" }> | null;
-      body: Extract<EditableFlexComponent, { type: "box" }>;
-      footer: Extract<EditableFlexComponent, { type: "box" }> | null;
-    });
+  | (Omit<Extract<BroadcastBlock, { type: "flex" }>, "bubbles"> & { bubbles: EditableFlexBubble[] });
 
 function toEditableFlexComponent(c: FlexComponent, mediaUrlByPath: Record<string, string>): EditableFlexComponent {
   if (c.type === "box") return { ...c, children: c.children.map((child) => toEditableFlexComponent(child, mediaUrlByPath)) };
   if (c.type === "image") return { ...c, _fileUrl: mediaUrlByPath[c.mediaPath] };
   return c;
+}
+
+// hero is always an "image" component and body/footer always "box" (see
+// FlexEditor) — toEditableFlexComponent's recursive signature can't
+// express that invariant, so it's asserted at each of these call sites.
+function toEditableFlexBubble(bubble: FlexBubble, mediaUrlByPath: Record<string, string>): EditableFlexBubble {
+  return {
+    id: bubble.id,
+    hero: bubble.hero ? (toEditableFlexComponent(bubble.hero, mediaUrlByPath) as EditableFlexComponent & { type: "image" }) : null,
+    body: toEditableFlexComponent(bubble.body, mediaUrlByPath) as EditableFlexComponent & { type: "box" },
+    footer: bubble.footer ? (toEditableFlexComponent(bubble.footer, mediaUrlByPath) as EditableFlexComponent & { type: "box" }) : null,
+  };
 }
 
 // Hydrates plain persisted blocks (from the DB, or from a hand-edited JSON
@@ -46,15 +61,7 @@ export function toEditableBlocks(blocks: BroadcastBlock[], mediaUrlByPath: Recor
       return { ...block, _fileUrl: mediaUrlByPath[block.mediaPath], _previewFileUrl: mediaUrlByPath[block.previewMediaPath] };
     }
     if (block.type === "flex") {
-      // hero is always an "image" component and body/footer always "box"
-      // (see FlexEditor) — toEditableFlexComponent's recursive signature
-      // can't express that invariant, so it's asserted here.
-      return {
-        ...block,
-        hero: block.hero ? (toEditableFlexComponent(block.hero, mediaUrlByPath) as EditableFlexComponent & { type: "image" }) : null,
-        body: toEditableFlexComponent(block.body, mediaUrlByPath) as EditableFlexComponent & { type: "box" },
-        footer: block.footer ? (toEditableFlexComponent(block.footer, mediaUrlByPath) as EditableFlexComponent & { type: "box" }) : null,
-      };
+      return { ...block, bubbles: block.bubbles.map((bubble) => toEditableFlexBubble(bubble, mediaUrlByPath)) };
     }
     return block;
   });
@@ -64,6 +71,15 @@ function persistFlexComponent(c: EditableFlexComponent): FlexComponent {
   if (c.type === "box") return { id: c.id, type: "box", layout: c.layout, children: c.children.map(persistFlexComponent) };
   if (c.type === "image") return { id: c.id, type: "image", mediaPath: c.mediaPath, action: c.action };
   return c;
+}
+
+function persistFlexBubble(bubble: EditableFlexBubble): FlexBubble {
+  return {
+    id: bubble.id,
+    hero: bubble.hero ? (persistFlexComponent(bubble.hero) as Extract<FlexComponent, { type: "image" }>) : null,
+    body: persistFlexComponent(bubble.body) as Extract<FlexComponent, { type: "box" }>,
+    footer: bubble.footer ? (persistFlexComponent(bubble.footer) as Extract<FlexComponent, { type: "box" }>) : null,
+  };
 }
 
 export function toPersistedBlocks(blocks: EditableBlock[]): BroadcastBlock[] {
@@ -83,17 +99,7 @@ export function toPersistedBlocks(blocks: EditableBlock[]): BroadcastBlock[] {
       return rest as BroadcastBlock;
     }
     if (block.type === "flex") {
-      // hero is always constructed as an "image" component and body/footer
-      // always as "box" (see FlexEditor) — persistFlexComponent's recursive
-      // signature can't express that invariant, so it's asserted here.
-      return {
-        id: block.id,
-        type: "flex",
-        altText: block.altText,
-        hero: block.hero ? (persistFlexComponent(block.hero) as Extract<FlexComponent, { type: "image" }>) : null,
-        body: persistFlexComponent(block.body) as Extract<FlexComponent, { type: "box" }>,
-        footer: block.footer ? (persistFlexComponent(block.footer) as Extract<FlexComponent, { type: "box" }>) : null,
-      };
+      return { id: block.id, type: "flex", altText: block.altText, bubbles: block.bubbles.map(persistFlexBubble) };
     }
     return block;
   });
@@ -103,6 +109,15 @@ function previewFlexComponent(c: EditableFlexComponent): FlexComponent {
   if (c.type === "box") return { id: c.id, type: "box", layout: c.layout, children: c.children.map(previewFlexComponent) };
   if (c.type === "image") return { id: c.id, type: "image", mediaPath: c._fileUrl || c.mediaPath, action: c.action };
   return c;
+}
+
+function previewFlexBubble(bubble: EditableFlexBubble): FlexBubble {
+  return {
+    id: bubble.id,
+    hero: bubble.hero ? (previewFlexComponent(bubble.hero) as Extract<FlexComponent, { type: "image" }>) : null,
+    body: previewFlexComponent(bubble.body) as Extract<FlexComponent, { type: "box" }>,
+    footer: bubble.footer ? (previewFlexComponent(bubble.footer) as Extract<FlexComponent, { type: "box" }>) : null,
+  };
 }
 
 function collectFlexMediaUrls(c: EditableFlexComponent, out: Record<string, string>) {
@@ -127,9 +142,11 @@ export function collectMediaUrlMap(blocks: EditableBlock[]): Record<string, stri
       if (block.previewMediaPath && block._previewFileUrl) out[block.previewMediaPath] = block._previewFileUrl;
     }
     if (block.type === "flex") {
-      if (block.hero) collectFlexMediaUrls(block.hero, out);
-      collectFlexMediaUrls(block.body, out);
-      if (block.footer) collectFlexMediaUrls(block.footer, out);
+      for (const bubble of block.bubbles) {
+        if (bubble.hero) collectFlexMediaUrls(bubble.hero, out);
+        collectFlexMediaUrls(bubble.body, out);
+        if (bubble.footer) collectFlexMediaUrls(bubble.footer, out);
+      }
     }
   }
   return out;
@@ -148,14 +165,7 @@ export function previewLineMessages(blocks: EditableBlock[]): LineMessage[] {
       return { ...block, mediaPath: block._fileUrl || block.mediaPath, previewMediaPath: block._previewFileUrl || block.previewMediaPath };
     }
     if (block.type === "flex") {
-      return {
-        id: block.id,
-        type: "flex",
-        altText: block.altText,
-        hero: block.hero ? (previewFlexComponent(block.hero) as Extract<FlexComponent, { type: "image" }>) : null,
-        body: previewFlexComponent(block.body) as Extract<FlexComponent, { type: "box" }>,
-        footer: block.footer ? (previewFlexComponent(block.footer) as Extract<FlexComponent, { type: "box" }>) : null,
-      };
+      return { id: block.id, type: "flex", altText: block.altText, bubbles: block.bubbles.map(previewFlexBubble) };
     }
     return block;
   });

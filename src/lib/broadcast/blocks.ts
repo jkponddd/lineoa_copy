@@ -37,12 +37,12 @@ export type ImagemapArea = {
   action: ImagemapAction;
 };
 
-// --- Flex: a single bubble (hero/body/footer), each a small component
-// tree. Scoped to the components that cover most real Flex messages —
-// box (layout container), text, image (with its own tap action,
-// independent of a separate button), button, separator. Carousels and the
-// `header` slot, icon/span/video components aren't built — see
-// PROGRESS.md.
+// --- Flex: one or more bubbles (hero/body/footer each), each a small
+// component tree. More than one bubble becomes a swipeable carousel.
+// Scoped to the components that cover most real Flex messages — box
+// (layout container), text, image (with its own tap action, independent
+// of a separate button), button, separator. The `header` slot and
+// icon/span/video components aren't built — see PROGRESS.md.
 export type FlexAction = { type: "uri" | "message"; label: string; value: string };
 export type FlexBoxLayout = "horizontal" | "vertical" | "baseline";
 export type FlexTextSize = "xs" | "sm" | "md" | "lg" | "xl";
@@ -117,6 +117,35 @@ function flexComponentToJson(component: FlexComponent, resolveUrl: (mediaPath: s
   }
 }
 
+// One card in a Flex message — a single bubble on its own, or one of
+// several in a carousel.
+export type FlexBubble = {
+  id: string;
+  hero: Extract<FlexComponent, { type: "image" }> | null;
+  body: Extract<FlexComponent, { type: "box" }>;
+  footer: Extract<FlexComponent, { type: "box" }> | null;
+};
+
+// LINE's own documented carousel limit.
+export const MAX_CAROUSEL_BUBBLES = 12;
+
+export function createFlexBubble(): FlexBubble {
+  return { id: crypto.randomUUID(), hero: null, body: { id: crypto.randomUUID(), type: "box", layout: "vertical", children: [] }, footer: null };
+}
+
+export function isFlexBubbleComplete(bubble: FlexBubble): boolean {
+  return isFlexComponentComplete(bubble.body) && (!bubble.hero || isFlexComponentComplete(bubble.hero)) && (!bubble.footer || isFlexComponentComplete(bubble.footer));
+}
+
+function flexBubbleToJson(bubble: FlexBubble, resolveUrl: (mediaPath: string) => string | null): Record<string, unknown> {
+  return {
+    type: "bubble",
+    ...(bubble.hero ? { hero: flexComponentToJson(bubble.hero, resolveUrl) } : {}),
+    body: flexComponentToJson(bubble.body, resolveUrl),
+    ...(bubble.footer ? { footer: flexComponentToJson(bubble.footer, resolveUrl) } : {}),
+  };
+}
+
 export type BroadcastBlock =
   | { id: string; type: "text"; text: string }
   | {
@@ -136,18 +165,8 @@ export type BroadcastBlock =
     }
   | { id: string; type: "video"; mediaPath: string; previewMediaPath: string }
   | { id: string; type: "button"; label: string; url: string }
-  | {
-      id: string;
-      type: "flex";
-      altText: string;
-      // Structurally narrowed (not the full FlexComponent union) — the
-      // editor only ever puts an image in hero and a box in body/footer,
-      // so the types say so too, rather than needing runtime narrowing
-      // every time these are read.
-      hero: Extract<FlexComponent, { type: "image" }> | null;
-      body: Extract<FlexComponent, { type: "box" }>;
-      footer: Extract<FlexComponent, { type: "box" }> | null;
-    };
+  // One bubble = a plain Flex message; more than one = a swipeable carousel.
+  | { id: string; type: "flex"; altText: string; bubbles: FlexBubble[] };
 
 export type BroadcastBlockType = BroadcastBlock["type"];
 
@@ -170,7 +189,7 @@ export function createBlock(type: BroadcastBlockType): BroadcastBlock {
     case "button":
       return { id, type: "button", label: "", url: "" };
     case "flex":
-      return { id, type: "flex", altText: "", hero: null, body: { id: crypto.randomUUID(), type: "box", layout: "vertical", children: [] }, footer: null };
+      return { id, type: "flex", altText: "", bubbles: [createFlexBubble()] };
   }
 }
 
@@ -190,12 +209,7 @@ export function isBlockComplete(block: BroadcastBlock): boolean {
     case "button":
       return block.label.trim().length > 0 && block.url.trim().length > 0;
     case "flex":
-      return (
-        block.altText.trim().length > 0 &&
-        isFlexComponentComplete(block.body) &&
-        (!block.hero || isFlexComponentComplete(block.hero)) &&
-        (!block.footer || isFlexComponentComplete(block.footer))
-      );
+      return block.altText.trim().length > 0 && block.bubbles.length > 0 && block.bubbles.every(isFlexBubbleComplete);
   }
 }
 
@@ -305,16 +319,11 @@ export function blocksToLineMessages(blocks: BroadcastBlock[], resolveUrl: (medi
     }
 
     if (block.type === "flex") {
-      messages.push({
-        type: "flex",
-        altText: block.altText,
-        contents: {
-          type: "bubble",
-          ...(block.hero ? { hero: flexComponentToJson(block.hero, resolveUrl) } : {}),
-          body: flexComponentToJson(block.body, resolveUrl),
-          ...(block.footer ? { footer: flexComponentToJson(block.footer, resolveUrl) } : {}),
-        },
-      });
+      const contents =
+        block.bubbles.length <= 1
+          ? flexBubbleToJson(block.bubbles[0], resolveUrl)
+          : { type: "carousel", contents: block.bubbles.slice(0, MAX_CAROUSEL_BUBBLES).map((bubble) => flexBubbleToJson(bubble, resolveUrl)) };
+      messages.push({ type: "flex", altText: block.altText, contents });
       return;
     }
 
@@ -379,9 +388,11 @@ export function blockMediaPaths(block: BroadcastBlock): { path: string; kind: "s
         if (c.type === "image" && c.mediaPath) paths.push({ path: c.mediaPath, kind: "signed" });
         if (c.type === "box") c.children.forEach(walk);
       };
-      if (block.hero) walk(block.hero);
-      walk(block.body);
-      if (block.footer) walk(block.footer);
+      for (const bubble of block.bubbles) {
+        if (bubble.hero) walk(bubble.hero);
+        walk(bubble.body);
+        if (bubble.footer) walk(bubble.footer);
+      }
       return paths;
     }
     default:

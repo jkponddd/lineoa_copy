@@ -13,7 +13,7 @@ import { BlockEditor } from "@/components/broadcast/block-editor";
 import { BroadcastPreviewPanel } from "@/components/broadcast/broadcast-preview";
 import { TestSendDialog } from "@/components/broadcast/test-send-dialog";
 import type { BroadcastContact } from "@/components/broadcast/contact-picker-dialog";
-import { toPersistedBlocks, toEditableBlocks, type EditableBlock, type EditableFlexComponent } from "@/components/broadcast/editable-block";
+import { toPersistedBlocks, toEditableBlocks, type EditableBlock, type EditableFlexComponent, type EditableFlexBubble } from "@/components/broadcast/editable-block";
 import { createBlock, blocksAreValid, type BroadcastBlock } from "@/lib/broadcast/blocks";
 import { JsonEditorDialog } from "@/components/broadcast/json-editor-dialog";
 import {
@@ -156,27 +156,36 @@ export function BroadcastComposer({
         continue;
       }
       if (block.type === "flex") {
-        const hero = block.hero ? await ensureFlexComponentUploaded(block.hero) : null;
-        if (block.hero && !hero) {
+        const resolvedBubbles: EditableFlexBubble[] = [];
+        let uploadFailed = false;
+        for (const bubble of block.bubbles) {
+          const hero = bubble.hero ? await ensureFlexComponentUploaded(bubble.hero) : null;
+          if (bubble.hero && !hero) {
+            uploadFailed = true;
+            break;
+          }
+          const body = await ensureFlexComponentUploaded(bubble.body);
+          if (!body) {
+            uploadFailed = true;
+            break;
+          }
+          const footer = bubble.footer ? await ensureFlexComponentUploaded(bubble.footer) : null;
+          if (bubble.footer && !footer) {
+            uploadFailed = true;
+            break;
+          }
+          resolvedBubbles.push({
+            id: bubble.id,
+            hero: hero as (EditableFlexComponent & { type: "image" }) | null,
+            body: body as EditableFlexComponent & { type: "box" },
+            footer: footer as (EditableFlexComponent & { type: "box" }) | null,
+          });
+        }
+        if (uploadFailed) {
           setUploading(false);
           return null;
         }
-        const body = await ensureFlexComponentUploaded(block.body);
-        if (!body) {
-          setUploading(false);
-          return null;
-        }
-        const footer = block.footer ? await ensureFlexComponentUploaded(block.footer) : null;
-        if (block.footer && !footer) {
-          setUploading(false);
-          return null;
-        }
-        resolved.push({
-          ...block,
-          hero: hero as (EditableFlexComponent & { type: "image" }) | null,
-          body: body as EditableFlexComponent & { type: "box" },
-          footer: footer as (EditableFlexComponent & { type: "box" }) | null,
-        });
+        resolved.push({ ...block, bubbles: resolvedBubbles });
         continue;
       }
       resolved.push(block);

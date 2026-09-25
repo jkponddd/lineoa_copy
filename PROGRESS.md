@@ -948,3 +948,42 @@ Continuing Step 21's list-first pattern to the rest of the Admin Panel, scoped v
 **Open items / not built yet**
 
 - Remaining open items across the whole project otherwise unchanged (see previous entries).
+
+---
+
+## 2026-09-23 (continued) — Phase 1, Step 26: Real per-width Imagemap resizing
+
+Closed out the open item from Step 22: the Imagemap `baseUrl` route was serving the original image at every width LINE requested rather than actually resizing, missing LINE's own bandwidth intent.
+
+**What was built**
+
+- Added `sharp` and updated `/api/imagemap/[...path]/route.ts` (`runtime = "nodejs"` — sharp needs native bindings, not available on Edge) to resize the downloaded image to the requested width on the fly, `withoutEnlargement: true` so a request for a width larger than the source doesn't upscale into a blurry result. Falls back to the original bytes if sharp can't process the input, rather than a broken response.
+
+**Verified against the live database and a live dev server**: uploaded a real 800×800 test image to Storage, hit the route directly at widths 240/700/1040, and confirmed via `sharp`'s own metadata reader that the response was genuinely resized (240→240×240, 700→700×700) and correctly capped at the source's real 800×800 for the 1040 request instead of upscaling. Cleaned up the test object afterward. `next build`, `tsc --noEmit`, `eslint` all clean.
+
+**Open items / not built yet**
+
+- Remaining open items across the whole project otherwise unchanged (see previous entries) — Flex Message carousels are now the main standing item.
+
+---
+
+## 2026-09-25 — Phase 1, Step 27: Flex Message carousels
+
+Closed the last standing item from Step 22: a Flex block was always exactly one bubble; LINE's carousel (multiple swipeable bubbles) wasn't built.
+
+**What was built**
+
+- `blocks.ts`: extracted the single bubble's hero/body/footer shape into its own `FlexBubble` type; the `flex` block now holds `bubbles: FlexBubble[]` (min 1) instead of hero/body/footer directly. `blocksToLineMessages` emits a plain bubble when there's exactly one, or `{ type: "carousel", contents: [...] }` (capped at LINE's documented 12-bubble limit) when there's more than one — still exactly one Flex message either way.
+- `FlexEditor`: a small card tab strip ("Card 1", "Card 2", ...) plus "Add card"/"Remove card", left/right reorder — each card reuses the exact same hero/body/footer editor a single bubble always had, just scoped to whichever card is selected.
+- Preview: a single bubble renders as before; 2+ bubbles render as a horizontal scroll-snap strip (each card ~85% width) so the carousel's swipeable nature is visible in the mockup, not just implied.
+- `editable-block.ts`, `broadcast-composer.tsx`'s upload/save flow, and `broadcast-preview.tsx` all updated to walk `bubbles[]` instead of a single hero/body/footer — same per-image lazy-upload and JSON-round-trip logic as before, just looped per card.
+
+**A real bug caught by the verification script itself, then correctly root-caused as the test's fault, not the product's**: an early version of the live-verify script used an ambiguous `+ ข้อความ` button locator that matched the composer's top-level "add a new text *block*" button instead of the Flex card's own "add a text *component* to this card's body" button — so it looked like switching between cards was losing each card's own text. Confirmed via screenshot that two stray top-level text blocks had been created instead, and that the Flex card's body was still empty; fixed the test's selector to scope strictly inside the card's own body-box section, and re-verified — each card correctly keeps its own independent content.
+
+**Verified against a live dev server**: added a second card and confirmed the "swipeable carousel" hint and card-tab UI appear only with 2+ cards; filled each card with its own distinct text, switched between them, and confirmed via the JSON popup that the persisted block structure has exactly 2 bubbles with the correct, independent text in each; confirmed the live preview renders both cards side-by-side in a horizontal scroll strip; removed the second card and confirmed the UI correctly falls back to single-bubble mode. `next build`, `tsc --noEmit`, `eslint` all clean throughout.
+
+**Open items / not built yet**
+
+- Flex's `header` slot and `icon`/`span`/`video` components still aren't built — scoped to box/text/image/button/separator, which covers most real usage.
+- No drag-to-reorder for carousel cards (left/right buttons only) — consistent with the rest of this editor's list-reordering, which is deliberately button-based rather than a custom pointer-drag implementation at every nesting level.
+- This was the last explicitly-tracked open item from the Broadcast composer work — future additions here would need fresh scoping.

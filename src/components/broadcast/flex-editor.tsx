@@ -1,16 +1,27 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { ChevronUp, ChevronDown, X, Plus } from "lucide-react";
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, X, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { createFlexComponent, type FlexAction, type FlexBoxLayout, type FlexComponentType, type FlexTextAlign, type FlexTextSize, type FlexTextWeight, type FlexButtonStyle } from "@/lib/broadcast/blocks";
-import type { EditableBlock, EditableFlexComponent } from "@/components/broadcast/editable-block";
+import {
+  createFlexComponent,
+  createFlexBubble,
+  MAX_CAROUSEL_BUBBLES,
+  type FlexAction,
+  type FlexBoxLayout,
+  type FlexComponentType,
+  type FlexTextAlign,
+  type FlexTextSize,
+  type FlexTextWeight,
+  type FlexButtonStyle,
+} from "@/lib/broadcast/blocks";
+import type { EditableBlock, EditableFlexComponent, EditableFlexBubble } from "@/components/broadcast/editable-block";
 
 type FlexBlock = Extract<EditableBlock, { type: "flex" }>;
 type BoxComponent = Extract<EditableFlexComponent, { type: "box" }>;
@@ -18,13 +29,42 @@ type ImageComponent = Extract<EditableFlexComponent, { type: "image" }>;
 
 const CHILD_TYPES: FlexComponentType[] = ["box", "text", "image", "button", "separator"];
 
-// A full box/component tree editor for a single Flex bubble — hero
-// (optional, a single actionable image), body (a required box), footer
-// (optional box, typically buttons). Nested boxes recurse through
-// BoxChildrenEditor, using the same list-with-up/down-and-remove pattern
-// as the flat BlockEditor, just applied at every level of the tree.
+// One or more cards (bubbles) — more than one becomes a swipeable
+// carousel. A small tab strip selects which card is being edited; each
+// card gets the same hero/body/footer box/component tree editor
+// (BubbleEditor) that a single Flex message always had.
 export function FlexEditor({ block, disabled, onChange }: { block: FlexBlock; disabled?: boolean; onChange: (patch: Partial<FlexBlock>) => void }) {
   const t = useTranslations("broadcast");
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const activeIndex = Math.min(selectedIndex, block.bubbles.length - 1);
+
+  function updateBubble(index: number, patch: Partial<EditableFlexBubble>) {
+    const next = [...block.bubbles];
+    next[index] = { ...next[index], ...patch };
+    onChange({ bubbles: next });
+  }
+
+  function addBubble() {
+    if (block.bubbles.length >= MAX_CAROUSEL_BUBBLES) return;
+    onChange({ bubbles: [...block.bubbles, createFlexBubble() as EditableFlexBubble] });
+    setSelectedIndex(block.bubbles.length);
+  }
+
+  function removeBubble(index: number) {
+    if (block.bubbles.length <= 1) return;
+    const next = block.bubbles.filter((_, i) => i !== index);
+    onChange({ bubbles: next });
+    setSelectedIndex((i) => Math.min(i, next.length - 1));
+  }
+
+  function moveBubble(from: number, to: number) {
+    if (to < 0 || to >= block.bubbles.length) return;
+    const next = [...block.bubbles];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    onChange({ bubbles: next });
+    setSelectedIndex(to);
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -33,17 +73,83 @@ export function FlexEditor({ block, disabled, onChange }: { block: FlexBlock; di
         <Input value={block.altText} onChange={(e) => onChange({ altText: e.target.value })} placeholder={t("flexAltTextPlaceholder")} disabled={disabled} />
       </div>
 
+      {block.bubbles.length > 1 ? <p className="text-xs text-muted-foreground">{t("flexCarouselHint")}</p> : null}
+
+      <div className="flex flex-wrap items-center gap-1.5">
+        {block.bubbles.map((bubble, index) => (
+          <Button
+            key={bubble.id}
+            type="button"
+            size="sm"
+            variant={index === activeIndex ? "default" : "outline"}
+            disabled={disabled}
+            onClick={() => setSelectedIndex(index)}
+          >
+            {t("flexCardLabel", { index: index + 1 })}
+          </Button>
+        ))}
+        <Button type="button" size="sm" variant="outline" disabled={disabled || block.bubbles.length >= MAX_CAROUSEL_BUBBLES} className="gap-1" onClick={addBubble}>
+          <Plus className="size-3.5" />
+          {t("flexAddCard")}
+        </Button>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div className="flex gap-1 text-muted-foreground">
+          <button type="button" disabled={disabled || activeIndex === 0} onClick={() => moveBubble(activeIndex, activeIndex - 1)} aria-label={t("blockMoveUp")}>
+            <ChevronLeft className="size-4 disabled:opacity-30" />
+          </button>
+          <button
+            type="button"
+            disabled={disabled || activeIndex === block.bubbles.length - 1}
+            onClick={() => moveBubble(activeIndex, activeIndex + 1)}
+            aria-label={t("blockMoveDown")}
+          >
+            <ChevronRight className="size-4 disabled:opacity-30" />
+          </button>
+        </div>
+        {block.bubbles.length > 1 ? (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => removeBubble(activeIndex)}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive"
+          >
+            <Trash2 className="size-3.5" />
+            {t("flexRemoveCard")}
+          </button>
+        ) : null}
+      </div>
+
+      <BubbleEditor bubble={block.bubbles[activeIndex]} disabled={disabled} onChange={(patch) => updateBubble(activeIndex, patch)} />
+    </div>
+  );
+}
+
+function BubbleEditor({
+  bubble,
+  disabled,
+  onChange,
+}: {
+  bubble: EditableFlexBubble;
+  disabled?: boolean;
+  onChange: (patch: Partial<EditableFlexBubble>) => void;
+}) {
+  const t = useTranslations("broadcast");
+
+  return (
+    <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-2 rounded-md border p-2">
         <div className="flex items-center justify-between">
           <Label className="text-xs">{t("flexHeroLabel")}</Label>
-          {block.hero ? (
+          {bubble.hero ? (
             <button type="button" disabled={disabled} onClick={() => onChange({ hero: null })} className="text-muted-foreground hover:text-destructive">
               <X className="size-3.5" />
             </button>
           ) : null}
         </div>
-        {block.hero ? (
-          <FlexImageFields component={block.hero} disabled={disabled} onChange={(patch) => onChange({ hero: { ...block.hero!, ...patch } })} />
+        {bubble.hero ? (
+          <FlexImageFields component={bubble.hero} disabled={disabled} onChange={(patch) => onChange({ hero: { ...bubble.hero!, ...patch } })} />
         ) : (
           <Button
             type="button"
@@ -61,20 +167,20 @@ export function FlexEditor({ block, disabled, onChange }: { block: FlexBlock; di
 
       <div className="flex flex-col gap-2 rounded-md border p-2">
         <Label className="text-xs">{t("flexBodyLabel")}</Label>
-        <BoxChildrenEditor box={block.body} disabled={disabled} onChange={(patch) => onChange({ body: { ...block.body, ...patch } })} />
+        <BoxChildrenEditor box={bubble.body} disabled={disabled} onChange={(patch) => onChange({ body: { ...bubble.body, ...patch } })} />
       </div>
 
       <div className="flex flex-col gap-2 rounded-md border p-2">
         <div className="flex items-center justify-between">
           <Label className="text-xs">{t("flexFooterLabel")}</Label>
-          {block.footer ? (
+          {bubble.footer ? (
             <button type="button" disabled={disabled} onClick={() => onChange({ footer: null })} className="text-muted-foreground hover:text-destructive">
               <X className="size-3.5" />
             </button>
           ) : null}
         </div>
-        {block.footer ? (
-          <BoxChildrenEditor box={block.footer} disabled={disabled} onChange={(patch) => onChange({ footer: { ...block.footer!, ...patch } })} />
+        {bubble.footer ? (
+          <BoxChildrenEditor box={bubble.footer} disabled={disabled} onChange={(patch) => onChange({ footer: { ...bubble.footer!, ...patch } })} />
         ) : (
           <Button
             type="button"
