@@ -98,9 +98,10 @@ export function BroadcastComposer({
     return uploadError ? null : path;
   }
 
-  // Recursively uploads any newly-picked (not-yet-uploaded) image file
-  // inside a flex component tree — a flex bubble's image components carry
-  // their own pending uploads exactly like a top-level image block does.
+  // Recursively uploads any newly-picked (not-yet-uploaded) image/icon/
+  // video file inside a flex component tree — a flex bubble's media
+  // components carry their own pending uploads exactly like a top-level
+  // image/video block does.
   async function ensureFlexComponentUploaded(component: EditableFlexComponent): Promise<EditableFlexComponent | null> {
     if (component.type === "box") {
       const children: EditableFlexComponent[] = [];
@@ -115,6 +116,26 @@ export function BroadcastComposer({
       const path = await uploadFile(component._file, "jpg");
       if (!path) return null;
       return { ...component, mediaPath: path, _file: undefined };
+    }
+    if (component.type === "icon" && component._file) {
+      const path = await uploadFile(component._file, "jpg");
+      if (!path) return null;
+      return { ...component, mediaPath: path, _file: undefined };
+    }
+    if (component.type === "video" && (component._file || component._previewFile)) {
+      let mediaPath = component.mediaPath;
+      let previewMediaPath = component.previewMediaPath;
+      if (component._file) {
+        const path = await uploadFile(component._file, "mp4");
+        if (!path) return null;
+        mediaPath = path;
+      }
+      if (component._previewFile) {
+        const path = await uploadFile(component._previewFile, "jpg");
+        if (!path) return null;
+        previewMediaPath = path;
+      }
+      return { ...component, mediaPath, previewMediaPath, _file: undefined, _previewFile: undefined };
     }
     return component;
   }
@@ -163,6 +184,11 @@ export function BroadcastComposer({
         const resolvedBubbles: EditableFlexBubble[] = [];
         let uploadFailed = false;
         for (const bubble of block.bubbles) {
+          const header = bubble.header ? await ensureFlexComponentUploaded(bubble.header) : null;
+          if (bubble.header && !header) {
+            uploadFailed = true;
+            break;
+          }
           const hero = bubble.hero ? await ensureFlexComponentUploaded(bubble.hero) : null;
           if (bubble.hero && !hero) {
             uploadFailed = true;
@@ -180,6 +206,7 @@ export function BroadcastComposer({
           }
           resolvedBubbles.push({
             id: bubble.id,
+            header: header as (EditableFlexComponent & { type: "box" }) | null,
             hero: hero as (EditableFlexComponent & { type: "image" }) | null,
             body: body as EditableFlexComponent & { type: "box" },
             footer: footer as (EditableFlexComponent & { type: "box" }) | null,

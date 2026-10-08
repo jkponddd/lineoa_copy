@@ -1011,3 +1011,27 @@ Built the Admin Panel's "ตั้งค่าระบบ" page — the one rem
 
 - The Vault-secret-cleanup half of `delete_organization()` (deleting `vault.secrets` for an org's LINE channels) was verified by code review and by reuse of the already-proven `delete_line_channel()` pattern, not by a fresh live run with a real channel — connecting a LINE channel validates the access token against LINE's real API, which a disposable test org has no legitimate token for.
 - No further explicitly-tracked open items from this batch of Admin Panel work — future additions here would need fresh scoping.
+
+---
+
+## 2026-10-08 — Phase 1, Step 29: Flex Message header slot + icon/span/video components
+
+Closed Step 27's last noted gap: the Flex builder's `header` slot and its `icon`/`span`/`video` components weren't built yet. User picked this specifically (over carousel drag-reorder or other work) via `AskUserQuestion`.
+
+**What was built**
+
+- `blocks.ts`: `FlexBubble` gains a `header` slot (a box component, same shape/rules as `footer`, ordered before `hero` per LINE's own bubble layout). `FlexComponent` gains `icon` (`{ mediaPath, size }`, renders to LINE's `{ type: "icon", url, size }`) and `video` (`{ mediaPath, previewMediaPath, aspectRatio }`, renders to `{ type: "video", url, previewUrl, altContent: { type: "image", ... }, aspectRatio }` — LINE requires that image fallback). The `text` component gains `spans: FlexSpan[]` (each a styled run: text/bold/italic/color) — empty means "use the plain `text` field as before"; non-empty emits LINE's `contents: [{ type: "span", ... }]` form instead, which is how LINE mixes styles within one text block.
+- `editable-block.ts`: mirrored all of the above into `EditableFlexComponent`/`EditableFlexBubble` with the same `_file`/`_fileUrl` (and `_previewFile`/`_previewFileUrl` for video) client-upload-state pattern already used by image/video blocks — `toEditableFlexComponent`, `persistFlexComponent`, `previewFlexComponent`, `collectFlexMediaUrls` all updated in lockstep so nothing only works halfway through the draft/copy/JSON-round-trip lifecycle.
+- `broadcast-composer.tsx`: `ensureFlexComponentUploaded` (the recursive upload-on-submit walker) now handles icon and video files the same way the top-level video block already does; the bubble-upload loop now also resolves `header`.
+- `flex-editor.tsx`: a header slot UI identical to the footer slot's (add/remove, same box/component-tree editor); icon/video added to the child-type picker with their own field editors (icon: file picker + size select; video: video file picker + thumbnail file picker + aspect-ratio select, reusing the exact same `attachVideo*` UI/copy as the top-level video block); text fields gained a "use multiple styles" checkbox that switches between the plain textarea and a list of styled runs (text + bold/italic checkboxes + a color swatch).
+- `broadcast-preview.tsx`: the phone-mockup chat preview now renders a bubble's header, shows icon as a small circular thumbnail, video as an inline `<video>`, and multi-span text with each run's own bold/italic/color — confirmed visually correct in both light and dark mode via a live Playwright run (header text, an attached icon, an attached video, and two differently-styled spans all rendered correctly in the actual chat mockup, not just in the editor form).
+
+**A tooling snag worth noting for future edits to this file**: `broadcast-preview.tsx`'s fallback text (`{component.text || " "}`) uses a non-breaking space (U+00A0), not a regular space — invisible in any diff/terminal output, so several `Edit` attempts silently failed to match before this was found by dumping character codes directly. Any future hand-edit near that line should be aware a stray "space" there might not be one.
+
+**Verified against a live dev server**: logged in as the existing seeded owner account, built a real Flex card through the actual UI (header with text, an icon, a video, and a text block with two styled spans), confirmed via the composer's own JSON view that the persisted block structure has the header/icon/video/spans data in the exact expected shape, and visually confirmed correct rendering in the live chat-mockup preview in both light and dark mode. `tsc --noEmit`, `eslint`, and `next build` all clean throughout.
+
+**Open items / not built yet**
+
+- No drag-to-reorder for carousel cards (left/right buttons only) — unchanged from Step 27, still consistent with this editor's button-based reordering elsewhere.
+- The Rich Menu / Broadcast Thai terminology audit from early in this session is already complete (Step 21) — nothing outstanding there.
+- No other explicitly-tracked open items remain — future additions here need fresh scoping.

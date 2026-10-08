@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   createFlexComponent,
   createFlexBubble,
+  createFlexSpan,
   MAX_CAROUSEL_BUBBLES,
   type FlexAction,
   type FlexBoxLayout,
@@ -20,14 +21,20 @@ import {
   type FlexTextSize,
   type FlexTextWeight,
   type FlexButtonStyle,
+  type FlexIconSize,
+  type FlexVideoAspectRatio,
+  type FlexSpan,
 } from "@/lib/broadcast/blocks";
 import type { EditableBlock, EditableFlexComponent, EditableFlexBubble } from "@/components/broadcast/editable-block";
 
 type FlexBlock = Extract<EditableBlock, { type: "flex" }>;
 type BoxComponent = Extract<EditableFlexComponent, { type: "box" }>;
 type ImageComponent = Extract<EditableFlexComponent, { type: "image" }>;
+type IconComponent = Extract<EditableFlexComponent, { type: "icon" }>;
+type VideoComponent = Extract<EditableFlexComponent, { type: "video" }>;
+type TextComponent = Extract<EditableFlexComponent, { type: "text" }>;
 
-const CHILD_TYPES: FlexComponentType[] = ["box", "text", "image", "button", "separator"];
+const CHILD_TYPES: FlexComponentType[] = ["box", "text", "image", "icon", "video", "button", "separator"];
 
 // One or more cards (bubbles) — more than one becomes a swipeable
 // carousel. A small tab strip selects which card is being edited; each
@@ -141,6 +148,32 @@ function BubbleEditor({
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-2 rounded-md border p-2">
         <div className="flex items-center justify-between">
+          <Label className="text-xs">{t("flexHeaderLabel")}</Label>
+          {bubble.header ? (
+            <button type="button" disabled={disabled} onClick={() => onChange({ header: null })} className="text-muted-foreground hover:text-destructive">
+              <X className="size-3.5" />
+            </button>
+          ) : null}
+        </div>
+        {bubble.header ? (
+          <BoxChildrenEditor box={bubble.header} disabled={disabled} onChange={(patch) => onChange({ header: { ...bubble.header!, ...patch } })} />
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            className="w-fit gap-1.5"
+            onClick={() => onChange({ header: createFlexComponent("box") as Extract<EditableFlexComponent, { type: "box" }> })}
+          >
+            <Plus className="size-3.5" />
+            {t("flexAddHeader")}
+          </Button>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-2 rounded-md border p-2">
+        <div className="flex items-center justify-between">
           <Label className="text-xs">{t("flexHeroLabel")}</Label>
           {bubble.hero ? (
             <button type="button" disabled={disabled} onClick={() => onChange({ hero: null })} className="text-muted-foreground hover:text-destructive">
@@ -211,6 +244,8 @@ function BoxChildrenEditor({ box, disabled, onChange }: { box: BoxComponent; dis
     box: t("flexComponentBox"),
     text: t("blockText"),
     image: t("blockImage"),
+    icon: t("flexComponentIcon"),
+    video: t("blockVideo"),
     button: t("blockButton"),
     separator: t("flexComponentSeparator"),
   };
@@ -305,51 +340,19 @@ function FlexComponentFields({
   }
 
   if (component.type === "text") {
-    const sizeLabel: Record<FlexTextSize, string> = { xs: "XS", sm: "S", md: "M", lg: "L", xl: "XL" };
-    const weightLabel: Record<FlexTextWeight, string> = { regular: t("flexWeightRegular"), bold: t("flexWeightBold") };
-    const alignLabel: Record<FlexTextAlign, string> = { start: t("flexAlignStart"), center: t("flexAlignCenter"), end: t("flexAlignEnd") };
-    return (
-      <div className="flex flex-col gap-2">
-        <Textarea value={component.text} onChange={(e) => onChange({ text: e.target.value })} placeholder={t("messagePlaceholder")} disabled={disabled} rows={2} />
-        <div className="grid grid-cols-3 gap-2">
-          <Select value={component.size} onValueChange={(v) => onChange({ size: (v ?? "md") as FlexTextSize })}>
-            <SelectTrigger disabled={disabled}>
-              <SelectValue>{(v: FlexTextSize) => sizeLabel[v]}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.keys(sizeLabel) as FlexTextSize[]).map((s) => (
-                <SelectItem key={s} value={s}>
-                  {sizeLabel[s]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={component.weight} onValueChange={(v) => onChange({ weight: (v ?? "regular") as FlexTextWeight })}>
-            <SelectTrigger disabled={disabled}>
-              <SelectValue>{(v: FlexTextWeight) => weightLabel[v]}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="regular">{weightLabel.regular}</SelectItem>
-              <SelectItem value="bold">{weightLabel.bold}</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={component.align} onValueChange={(v) => onChange({ align: (v ?? "start") as FlexTextAlign })}>
-            <SelectTrigger disabled={disabled}>
-              <SelectValue>{(v: FlexTextAlign) => alignLabel[v]}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="start">{alignLabel.start}</SelectItem>
-              <SelectItem value="center">{alignLabel.center}</SelectItem>
-              <SelectItem value="end">{alignLabel.end}</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-    );
+    return <FlexTextFields component={component} disabled={disabled} onChange={onChange} />;
   }
 
   if (component.type === "image") {
     return <FlexImageFields component={component} disabled={disabled} onChange={onChange} />;
+  }
+
+  if (component.type === "icon") {
+    return <FlexIconFields component={component} disabled={disabled} onChange={onChange} />;
+  }
+
+  if (component.type === "video") {
+    return <FlexVideoFields component={component} disabled={disabled} onChange={onChange} />;
   }
 
   if (component.type === "button") {
@@ -380,6 +383,241 @@ function FlexComponentFields({
   }
 
   return null;
+}
+
+function FlexTextFields({ component, disabled, onChange }: { component: TextComponent; disabled?: boolean; onChange: (patch: Partial<TextComponent>) => void }) {
+  const t = useTranslations("broadcast");
+  const sizeLabel: Record<FlexTextSize, string> = { xs: "XS", sm: "S", md: "M", lg: "L", xl: "XL" };
+  const weightLabel: Record<FlexTextWeight, string> = { regular: t("flexWeightRegular"), bold: t("flexWeightBold") };
+  const alignLabel: Record<FlexTextAlign, string> = { start: t("flexAlignStart"), center: t("flexAlignCenter"), end: t("flexAlignEnd") };
+  const useSpans = component.spans.length > 0;
+
+  function updateSpan(index: number, patch: Partial<FlexSpan>) {
+    const next = [...component.spans];
+    next[index] = { ...next[index], ...patch };
+    onChange({ spans: next });
+  }
+
+  function removeSpan(index: number) {
+    onChange({ spans: component.spans.filter((_, i) => i !== index) });
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <label className="flex items-center gap-1.5 text-xs">
+        <input
+          type="checkbox"
+          checked={useSpans}
+          disabled={disabled}
+          onChange={(e) => onChange({ spans: e.target.checked ? [createFlexSpan()] : [] })}
+          className="size-3.5 rounded border-input"
+        />
+        {t("flexUseSpans")}
+      </label>
+
+      {useSpans ? (
+        <div className="flex flex-col gap-1.5">
+          {component.spans.map((span, index) => (
+            <div key={span.id} className="flex flex-col gap-1 rounded-md border bg-card p-1.5">
+              <div className="flex items-center gap-1.5">
+                <Input
+                  value={span.text}
+                  onChange={(e) => updateSpan(index, { text: e.target.value })}
+                  placeholder={t("flexSpanTextPlaceholder")}
+                  disabled={disabled}
+                  className="flex-1"
+                />
+                <button type="button" disabled={disabled} onClick={() => removeSpan(index)} className="text-muted-foreground hover:text-destructive">
+                  <X className="size-3.5" />
+                </button>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <label className="flex items-center gap-1">
+                  <input
+                    type="checkbox"
+                    checked={span.bold}
+                    disabled={disabled}
+                    onChange={(e) => updateSpan(index, { bold: e.target.checked })}
+                    className="size-3.5 rounded border-input"
+                  />
+                  {t("flexWeightBold")}
+                </label>
+                <label className="flex items-center gap-1">
+                  <input
+                    type="checkbox"
+                    checked={span.italic}
+                    disabled={disabled}
+                    onChange={(e) => updateSpan(index, { italic: e.target.checked })}
+                    className="size-3.5 rounded border-input"
+                  />
+                  {t("flexSpanItalic")}
+                </label>
+                <input
+                  type="color"
+                  value={span.color || "#000000"}
+                  disabled={disabled}
+                  onChange={(e) => updateSpan(index, { color: e.target.value })}
+                  className="h-6 w-8 shrink-0 rounded border border-input"
+                  aria-label={t("flexSpanColorLabel")}
+                />
+              </div>
+            </div>
+          ))}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            className="w-fit gap-1"
+            onClick={() => onChange({ spans: [...component.spans, createFlexSpan()] })}
+          >
+            <Plus className="size-3.5" />
+            {t("flexAddSpan")}
+          </Button>
+        </div>
+      ) : (
+        <Textarea value={component.text} onChange={(e) => onChange({ text: e.target.value })} placeholder={t("messagePlaceholder")} disabled={disabled} rows={2} />
+      )}
+
+      <div className="grid grid-cols-3 gap-2">
+        <Select value={component.size} onValueChange={(v) => onChange({ size: (v ?? "md") as FlexTextSize })}>
+          <SelectTrigger disabled={disabled}>
+            <SelectValue>{(v: FlexTextSize) => sizeLabel[v]}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {(Object.keys(sizeLabel) as FlexTextSize[]).map((s) => (
+              <SelectItem key={s} value={s}>
+                {sizeLabel[s]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={component.weight} onValueChange={(v) => onChange({ weight: (v ?? "regular") as FlexTextWeight })}>
+          <SelectTrigger disabled={disabled}>
+            <SelectValue>{(v: FlexTextWeight) => weightLabel[v]}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="regular">{weightLabel.regular}</SelectItem>
+            <SelectItem value="bold">{weightLabel.bold}</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={component.align} onValueChange={(v) => onChange({ align: (v ?? "start") as FlexTextAlign })}>
+          <SelectTrigger disabled={disabled}>
+            <SelectValue>{(v: FlexTextAlign) => alignLabel[v]}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="start">{alignLabel.start}</SelectItem>
+            <SelectItem value="center">{alignLabel.center}</SelectItem>
+            <SelectItem value="end">{alignLabel.end}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+}
+
+function FlexIconFields({ component, disabled, onChange }: { component: IconComponent; disabled?: boolean; onChange: (patch: Partial<IconComponent>) => void }) {
+  const t = useTranslations("broadcast");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const sizeLabel: Record<FlexIconSize, string> = { xs: "XS", sm: "S", md: "M", lg: "L", xl: "XL" };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        {component._fileUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- local object URL or signed Storage URL preview
+          <img src={component._fileUrl} alt="" className="size-8 rounded border object-cover" />
+        ) : null}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) onChange({ _file: file, _fileUrl: URL.createObjectURL(file), mediaPath: "" });
+          }}
+        />
+        <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={() => fileInputRef.current?.click()}>
+          {component._fileUrl ? t("attachImageChange") : t("attachImage")}
+        </Button>
+      </div>
+      <Select value={component.size} onValueChange={(v) => onChange({ size: (v ?? "md") as FlexIconSize })}>
+        <SelectTrigger className="w-full sm:w-32" disabled={disabled}>
+          <SelectValue>{(v: FlexIconSize) => sizeLabel[v]}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {(Object.keys(sizeLabel) as FlexIconSize[]).map((s) => (
+            <SelectItem key={s} value={s}>
+              {sizeLabel[s]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+function FlexVideoFields({ component, disabled, onChange }: { component: VideoComponent; disabled?: boolean; onChange: (patch: Partial<VideoComponent>) => void }) {
+  const t = useTranslations("broadcast");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const previewInputRef = useRef<HTMLInputElement>(null);
+  const ratioOptions: FlexVideoAspectRatio[] = ["1:1", "4:3", "16:9", "20:13"];
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        {component._fileUrl ? <video src={component._fileUrl} className="h-14 w-auto rounded border" muted /> : null}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="video/mp4"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) onChange({ _file: file, _fileUrl: URL.createObjectURL(file), mediaPath: "" });
+          }}
+        />
+        <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={() => fileInputRef.current?.click()}>
+          {component._fileUrl ? t("attachVideoChange") : t("attachVideo")}
+        </Button>
+      </div>
+      <div className="flex items-center gap-2">
+        {component._previewFileUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- local object URL or signed Storage URL preview
+          <img src={component._previewFileUrl} alt="" className="h-12 w-auto rounded border object-cover" />
+        ) : null}
+        <input
+          ref={previewInputRef}
+          type="file"
+          accept="image/png,image/jpeg"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) onChange({ _previewFile: file, _previewFileUrl: URL.createObjectURL(file), previewMediaPath: "" });
+          }}
+        />
+        <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={() => previewInputRef.current?.click()}>
+          {t("attachVideoThumbnail")}
+        </Button>
+      </div>
+      <Select value={component.aspectRatio} onValueChange={(v) => onChange({ aspectRatio: (v ?? "16:9") as FlexVideoAspectRatio })}>
+        <SelectTrigger className="w-full sm:w-32" disabled={disabled}>
+          <SelectValue>{(v: FlexVideoAspectRatio) => v}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {ratioOptions.map((r) => (
+            <SelectItem key={r} value={r}>
+              {r}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
 }
 
 function FlexImageFields({ component, disabled, onChange }: { component: ImageComponent; disabled?: boolean; onChange: (patch: Partial<ImageComponent>) => void }) {

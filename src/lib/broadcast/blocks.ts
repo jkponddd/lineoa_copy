@@ -37,29 +37,43 @@ export type ImagemapArea = {
   action: ImagemapAction;
 };
 
-// --- Flex: one or more bubbles (hero/body/footer each), each a small
-// component tree. More than one bubble becomes a swipeable carousel.
-// Scoped to the components that cover most real Flex messages — box
-// (layout container), text, image (with its own tap action, independent
-// of a separate button), button, separator. The `header` slot and
-// icon/span/video components aren't built — see PROGRESS.md.
+// --- Flex: one or more bubbles (header/hero/body/footer each), each a
+// small component tree. More than one bubble becomes a swipeable carousel.
+// Covers box (layout container), text (with per-span styling), image (with
+// its own tap action, independent of a separate button), icon, video,
+// button, separator.
 export type FlexAction = { type: "uri" | "message"; label: string; value: string };
 export type FlexBoxLayout = "horizontal" | "vertical" | "baseline";
 export type FlexTextSize = "xs" | "sm" | "md" | "lg" | "xl";
 export type FlexTextWeight = "regular" | "bold";
 export type FlexTextAlign = "start" | "center" | "end";
 export type FlexButtonStyle = "primary" | "secondary" | "link";
+export type FlexIconSize = "xs" | "sm" | "md" | "lg" | "xl";
+// LINE's own "W:H" ratio string format, not a decimal.
+export type FlexVideoAspectRatio = "1:1" | "4:3" | "16:9" | "20:13";
+
+// A styled run of text within a `text` component — lets one text block mix
+// bold/italic/colored segments (e.g. "Total: **$42**") rather than every
+// word sharing one size/weight. Present (even as an empty array) on every
+// text component; an empty `spans` means "use the plain `text` field".
+export type FlexSpan = { id: string; text: string; bold: boolean; italic: boolean; color: string };
 
 // A flex `button` component's visible text is `action.label` — LINE has
 // no separate label field on the button component itself.
 export type FlexComponent =
   | { id: string; type: "box"; layout: FlexBoxLayout; children: FlexComponent[] }
-  | { id: string; type: "text"; text: string; size: FlexTextSize; weight: FlexTextWeight; align: FlexTextAlign }
+  | { id: string; type: "text"; text: string; size: FlexTextSize; weight: FlexTextWeight; align: FlexTextAlign; spans: FlexSpan[] }
   | { id: string; type: "image"; mediaPath: string; action: FlexAction | null }
+  | { id: string; type: "icon"; mediaPath: string; size: FlexIconSize }
+  | { id: string; type: "video"; mediaPath: string; previewMediaPath: string; aspectRatio: FlexVideoAspectRatio }
   | { id: string; type: "button"; action: FlexAction; style: FlexButtonStyle }
   | { id: string; type: "separator" };
 
 export type FlexComponentType = FlexComponent["type"];
+
+export function createFlexSpan(): FlexSpan {
+  return { id: crypto.randomUUID(), text: "", bold: false, italic: false, color: "" };
+}
 
 export function createFlexComponent(type: FlexComponentType): FlexComponent {
   const id = crypto.randomUUID();
@@ -67,9 +81,13 @@ export function createFlexComponent(type: FlexComponentType): FlexComponent {
     case "box":
       return { id, type: "box", layout: "vertical", children: [] };
     case "text":
-      return { id, type: "text", text: "", size: "md", weight: "regular", align: "start" };
+      return { id, type: "text", text: "", size: "md", weight: "regular", align: "start", spans: [] };
     case "image":
       return { id, type: "image", mediaPath: "", action: null };
+    case "icon":
+      return { id, type: "icon", mediaPath: "", size: "md" };
+    case "video":
+      return { id, type: "video", mediaPath: "", previewMediaPath: "", aspectRatio: "16:9" };
     case "button":
       return { id, type: "button", action: { type: "uri", label: "", value: "" }, style: "primary" };
     case "separator":
@@ -82,9 +100,13 @@ export function isFlexComponentComplete(component: FlexComponent): boolean {
     case "box":
       return component.children.length > 0 && component.children.every(isFlexComponentComplete);
     case "text":
-      return component.text.trim().length > 0;
+      return component.spans.length > 0 ? component.spans.every((s) => s.text.trim().length > 0) : component.text.trim().length > 0;
     case "image":
       return component.mediaPath.trim().length > 0 && (!component.action || component.action.value.trim().length > 0);
+    case "icon":
+      return component.mediaPath.trim().length > 0;
+    case "video":
+      return component.mediaPath.trim().length > 0 && component.previewMediaPath.trim().length > 0;
     case "button":
       return component.action.label.trim().length > 0 && component.action.value.trim().length > 0;
     case "separator":
@@ -98,18 +120,47 @@ function flexActionToJson(action: FlexAction): Record<string, unknown> {
     : { type: "message", label: action.label, text: action.value };
 }
 
+function flexSpanToJson(span: FlexSpan): Record<string, unknown> {
+  return {
+    type: "span",
+    text: span.text,
+    ...(span.bold ? { weight: "bold" } : {}),
+    ...(span.italic ? { style: "italic" } : {}),
+    ...(span.color ? { color: span.color } : {}),
+  };
+}
+
 function flexComponentToJson(component: FlexComponent, resolveUrl: (mediaPath: string) => string | null): Record<string, unknown> {
   switch (component.type) {
     case "box":
       return { type: "box", layout: component.layout, contents: component.children.map((c) => flexComponentToJson(c, resolveUrl)) };
     case "text":
-      return { type: "text", text: component.text, size: component.size, weight: component.weight, align: component.align, wrap: true };
+      return {
+        type: "text",
+        size: component.size,
+        weight: component.weight,
+        align: component.align,
+        wrap: true,
+        ...(component.spans.length > 0 ? { contents: component.spans.map(flexSpanToJson) } : { text: component.text }),
+      };
     case "image":
       return {
         type: "image",
         url: resolveUrl(component.mediaPath) ?? "",
         ...(component.action ? { action: flexActionToJson(component.action) } : {}),
       };
+    case "icon":
+      return { type: "icon", url: resolveUrl(component.mediaPath) ?? "", size: component.size };
+    case "video": {
+      const previewUrl = resolveUrl(component.previewMediaPath) ?? "";
+      return {
+        type: "video",
+        url: resolveUrl(component.mediaPath) ?? "",
+        previewUrl,
+        altContent: { type: "image", url: previewUrl, aspectRatio: component.aspectRatio },
+        aspectRatio: component.aspectRatio,
+      };
+    }
     case "button":
       return { type: "button", style: component.style, action: flexActionToJson(component.action) };
     case "separator":
@@ -121,6 +172,7 @@ function flexComponentToJson(component: FlexComponent, resolveUrl: (mediaPath: s
 // several in a carousel.
 export type FlexBubble = {
   id: string;
+  header: Extract<FlexComponent, { type: "box" }> | null;
   hero: Extract<FlexComponent, { type: "image" }> | null;
   body: Extract<FlexComponent, { type: "box" }>;
   footer: Extract<FlexComponent, { type: "box" }> | null;
@@ -130,16 +182,28 @@ export type FlexBubble = {
 export const MAX_CAROUSEL_BUBBLES = 12;
 
 export function createFlexBubble(): FlexBubble {
-  return { id: crypto.randomUUID(), hero: null, body: { id: crypto.randomUUID(), type: "box", layout: "vertical", children: [] }, footer: null };
+  return {
+    id: crypto.randomUUID(),
+    header: null,
+    hero: null,
+    body: { id: crypto.randomUUID(), type: "box", layout: "vertical", children: [] },
+    footer: null,
+  };
 }
 
 export function isFlexBubbleComplete(bubble: FlexBubble): boolean {
-  return isFlexComponentComplete(bubble.body) && (!bubble.hero || isFlexComponentComplete(bubble.hero)) && (!bubble.footer || isFlexComponentComplete(bubble.footer));
+  return (
+    isFlexComponentComplete(bubble.body) &&
+    (!bubble.header || isFlexComponentComplete(bubble.header)) &&
+    (!bubble.hero || isFlexComponentComplete(bubble.hero)) &&
+    (!bubble.footer || isFlexComponentComplete(bubble.footer))
+  );
 }
 
 function flexBubbleToJson(bubble: FlexBubble, resolveUrl: (mediaPath: string) => string | null): Record<string, unknown> {
   return {
     type: "bubble",
+    ...(bubble.header ? { header: flexComponentToJson(bubble.header, resolveUrl) } : {}),
     ...(bubble.hero ? { hero: flexComponentToJson(bubble.hero, resolveUrl) } : {}),
     body: flexComponentToJson(bubble.body, resolveUrl),
     ...(bubble.footer ? { footer: flexComponentToJson(bubble.footer, resolveUrl) } : {}),
@@ -386,9 +450,15 @@ export function blockMediaPaths(block: BroadcastBlock): { path: string; kind: "s
       const paths: { path: string; kind: "signed" | "public" }[] = [];
       const walk = (c: FlexComponent) => {
         if (c.type === "image" && c.mediaPath) paths.push({ path: c.mediaPath, kind: "signed" });
+        if (c.type === "icon" && c.mediaPath) paths.push({ path: c.mediaPath, kind: "signed" });
+        if (c.type === "video") {
+          if (c.mediaPath) paths.push({ path: c.mediaPath, kind: "signed" });
+          if (c.previewMediaPath) paths.push({ path: c.previewMediaPath, kind: "signed" });
+        }
         if (c.type === "box") c.children.forEach(walk);
       };
       for (const bubble of block.bubbles) {
+        if (bubble.header) walk(bubble.header);
         if (bubble.hero) walk(bubble.hero);
         walk(bubble.body);
         if (bubble.footer) walk(bubble.footer);

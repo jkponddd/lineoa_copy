@@ -169,6 +169,11 @@ function BlockBubble({ block }: { block: EditableBlock }) {
 function FlexBubblePreview({ bubble, className }: { bubble: EditableFlexBubble; className?: string }) {
   return (
     <div className={cn("overflow-hidden rounded-lg rounded-tl-sm border border-border bg-background", className)}>
+      {bubble.header ? (
+        <div className="flex flex-col gap-1.5 p-2">
+          <FlexComponentPreview component={bubble.header} />
+        </div>
+      ) : null}
       {bubble.hero ? <FlexComponentPreview component={bubble.hero} /> : null}
       <div className="flex flex-col gap-1.5 p-2">
         <FlexComponentPreview component={bubble.body} />
@@ -183,6 +188,7 @@ function FlexBubblePreview({ bubble, className }: { bubble: EditableFlexBubble; 
 }
 
 const FLEX_TEXT_SIZE_CLASS: Record<string, string> = { xs: "text-[9px]", sm: "text-[10px]", md: "text-xs", lg: "text-sm", xl: "text-base" };
+const FLEX_ICON_SIZE_CLASS: Record<string, string> = { xs: "size-2.5", sm: "size-3", md: "size-4", lg: "size-5", xl: "size-6" };
 
 function FlexComponentPreview({ component }: { component: EditableFlexComponent }) {
   if (component.type === "box") {
@@ -201,25 +207,41 @@ function FlexComponentPreview({ component }: { component: EditableFlexComponent 
   }
 
   if (component.type === "text") {
-    return (
-      <p
-        className={cn(
-          FLEX_TEXT_SIZE_CLASS[component.size],
-          component.weight === "bold" && "font-bold",
-          component.align === "center" && "text-center",
-          component.align === "end" && "text-right",
-          "wrap-break-word",
-        )}
-      >
-        {component.text || " "}
-      </p>
+    const textClass = cn(
+      FLEX_TEXT_SIZE_CLASS[component.size],
+      component.align === "center" && "text-center",
+      component.align === "end" && "text-right",
+      "wrap-break-word",
     );
+    if (component.spans.length > 0) {
+      return (
+        <p className={textClass}>
+          {component.spans.map((span) => (
+            <span key={span.id} style={{ color: span.color || undefined }} className={cn(span.bold && "font-bold", span.italic && "italic")}>
+              {span.text}
+            </span>
+          ))}
+        </p>
+      );
+    }
+    return <p className={cn(textClass, component.weight === "bold" && "font-bold")}>{component.text || " "}</p>;
   }
 
   if (component.type === "image") {
     if (!component._fileUrl) return <div className="h-16 w-full rounded bg-muted" />;
     // eslint-disable-next-line @next/next/no-img-element -- local preview / signed URL
     return <img src={component._fileUrl} alt="" className="w-full rounded object-cover" />;
+  }
+
+  if (component.type === "icon") {
+    if (!component._fileUrl) return <div className={cn("shrink-0 rounded-full bg-muted", FLEX_ICON_SIZE_CLASS[component.size])} />;
+    // eslint-disable-next-line @next/next/no-img-element -- local preview / signed URL
+    return <img src={component._fileUrl} alt="" className={cn("shrink-0 rounded-full object-cover", FLEX_ICON_SIZE_CLASS[component.size])} />;
+  }
+
+  if (component.type === "video") {
+    if (!component._fileUrl) return <div className="h-16 w-full rounded bg-muted" />;
+    return <video src={component._fileUrl} className="w-full rounded" muted />;
   }
 
   if (component.type === "button") {
