@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
 import { getLocale } from "next-intl/server";
 
@@ -6,6 +7,12 @@ import { AppShell } from "@/components/layout/app-shell";
 import type { NavItem, PrimaryAction } from "@/components/layout/types";
 import { getCurrentMembership } from "@/lib/supabase/get-current-membership";
 import { redirect } from "@/i18n/navigation";
+
+// Signed-in-only pages have nothing for a search engine to usefully index
+// (and an unauthenticated crawler just bounces off the login redirect
+// anyway) — explicit noindex is a stronger, more reliable signal than
+// relying on robots.txt's disallow alone.
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const locale = await getLocale();

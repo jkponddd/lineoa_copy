@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
 import { useTranslations } from "next-intl";
@@ -8,6 +9,10 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { Link } from "@/i18n/navigation";
 import { CreateOrganizationForm } from "@/components/auth/create-organization-form";
+
+// Only reachable once signed in with no organization yet — same noindex
+// reasoning as the (app)/(admin) layouts.
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 export default async function OnboardingPage() {
   const locale = await getLocale();

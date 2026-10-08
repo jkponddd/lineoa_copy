@@ -1,8 +1,13 @@
+import type { Metadata } from "next";
 import { getLocale } from "next-intl/server";
 
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "@/i18n/navigation";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
+
+// Only ever reached via a one-time recovery link's token exchange —
+// nothing here is a page a search engine should ever send someone to.
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 export default async function ResetPasswordPage() {
   const locale = await getLocale();

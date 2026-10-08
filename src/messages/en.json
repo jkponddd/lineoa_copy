@@ -10,6 +10,11 @@
     "signOut": "Sign out",
     "accountMenu": "Account menu"
   },
+  "seo": {
+    "defaultTitle": "LINE OA Platform",
+    "defaultDescription": "One platform for inbox, broadcast, rich menu, and reporting for your LINE Official Account.",
+    "ogImageAlt": "LINE OA Platform — manage your LINE Official Account like a pro"
+  },
   "auth": {
     "loginTitle": "Log in",
     "loginDescription": "Log in to manage your LINE OA.",

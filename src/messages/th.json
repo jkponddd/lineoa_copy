@@ -10,6 +10,11 @@
     "signOut": "ออกจากระบบ",
     "accountMenu": "เมนูบัญชีผู้ใช้"
   },
+  "seo": {
+    "defaultTitle": "LINE OA Platform",
+    "defaultDescription": "แพลตฟอร์มสำหรับจัดการกล่องข้อความ บรอดแคสต์ ริชเมนู และรายงานของ LINE Official Account แบบครบวงจร",
+    "ogImageAlt": "LINE OA Platform — จัดการ LINE Official Account ของคุณอย่างมืออาชีพ"
+  },
   "auth": {
     "loginTitle": "เข้าสู่ระบบ",
     "loginDescription": "เข้าสู่ระบบเพื่อจัดการ LINE OA ของคุณ",

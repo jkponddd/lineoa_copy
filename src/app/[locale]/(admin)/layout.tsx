@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
 import { getLocale } from "next-intl/server";
 
@@ -6,6 +7,10 @@ import { AppShell } from "@/components/layout/app-shell";
 import type { NavItem, PrimaryAction } from "@/components/layout/types";
 import { getCurrentMembership } from "@/lib/supabase/get-current-membership";
 import { redirect } from "@/i18n/navigation";
+
+// Same reasoning as the (app) layout's noindex — nothing behind the admin
+// panel's login wall is meant for search engines.
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const locale = await getLocale();

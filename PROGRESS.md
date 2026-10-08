@@ -1123,3 +1123,29 @@ User deferred the two decisions-pending items (payment provider, real screenshot
 - Rate limiting — needs the user to choose a backend before implementation starts.
 - A real Content-Security-Policy — needs to be scoped against the actual deployed Supabase project URL, not this dev environment's.
 - Payment provider (Billing) and real product screenshots (Homepage hero) — both explicitly deferred by the user this session, unchanged from Step 32.
+
+---
+
+## 2026-10-08 (continued) — Phase 1, Step 34: SEO — metadata, sitemap, robots, structured data, llms.txt
+
+User asked to add modern/current SEO practices. The root layout previously exported one hardcoded, English-only, identical-on-every-page `metadata` object (same title/description whether you were on the homepage, the login screen, or a signed-in-only admin page) — the actual gap this closed.
+
+**What was built**
+
+- `src/lib/site-url.ts`: `SITE_URL` from `NEXT_PUBLIC_SITE_URL`, falling back to `http://localhost:3000` for dev — distinct from the existing `getSiteOrigin()` (which reads the request's Host header for things like invite-email links), since metadata routes like `sitemap.ts`/`robots.ts` aren't always request-scoped and need a stable, env-configured value instead.
+- `src/lib/metadata-alternates.ts`: a `buildAlternates(locale, pathSuffix)` helper producing a page's canonical URL plus full hreflang (`th`, `en`, and `x-default` pointing at the default locale) — shared by every page that sets its own metadata, so hreflang is correct per-page (e.g. the login page's English alternate points at `/en/login`, not `/en`).
+- Root `[locale]/layout.tsx`: replaced the static `metadata` export with `generateMetadata`, driven by a new `seo` i18n namespace (both locales) — sets `metadataBase`, a title template (`%s | LINE OA Platform`), default description, hreflang, `openGraph`/`twitter` card defaults. Acts as the fallback for any page that doesn't set its own.
+- Per-page `generateMetadata` added to the marketing homepage, login, signup, and forgot-password pages — each reusing its own already-existing i18n title/description keys (no new copy needed there) plus its own `buildAlternates(locale, path)`.
+- `robots: { index: false, follow: false }` added to the `(app)` layout, `(admin)` layout, the onboarding page, and the reset-password page — nothing behind an auth wall or a one-time token link should ever be indexed, as defense-in-depth alongside `robots.txt`'s disallow rules (the actual primary defense is `proxy.ts` redirecting unauthenticated requests before any HTML renders at all).
+- `src/app/robots.ts` and `src/app/sitemap.ts` (Next.js's built-in metadata route conventions) — robots disallows `/api/`, `/auth/`, and every locale's `/app/`, `/admin/`, `/onboarding`, `/reset-password` via wildcard patterns; the sitemap lists only the genuinely public pages (homepage, login, signup, forgot-password) in both locales with per-URL hreflang alternates.
+- `src/app/[locale]/(marketing)/opengraph-image.tsx`: a dynamic OG image via `next/og`'s `ImageResponse`, rendering the actual translated title/description per locale — picked up automatically by Next.js's file-based OG image convention, no manual wiring into `generateMetadata` needed.
+- JSON-LD structured data on the homepage: `Organization` + `FAQPage` schema, with the FAQ entries pulled from the exact same `getFaqItems()` the visible `FaqSection` component renders (newly exported from `faq-section.tsx`) so the structured data can never drift out of sync with what's actually on the page.
+- `src/app/llms.txt/route.ts`: an `llms.txt` (per the emerging llmstxt.org convention) — a short, structured summary of the product for AI/LLM crawlers that can't execute the page's JS the way a browser does. Not a Next.js built-in metadata route type, so implemented as a plain Route Handler.
+
+**Verified against a live dev server**: `curl`-ed `/robots.txt`, `/sitemap.xml`, and `/llms.txt` directly and confirmed their exact content; fetched the homepage's raw HTML and confirmed title/description/canonical/hreflang/OpenGraph/Twitter-card tags and the JSON-LD script all resolve correctly (the FAQPage schema's 5 questions matched the visible accordion exactly); downloaded the generated OG image and confirmed it's a real 1200×630 PNG with the correct Thai title/description rendered; confirmed login/signup pages each get their own title and correctly self-referencing hreflang (not the homepage's). `tsc --noEmit`, `eslint`, and `next build` all clean throughout.
+
+**Open items / not built yet**
+
+- No Content-Security-Policy still (unchanged from Step 33 — needs the real deployed Supabase project URL to scope correctly, not a placeholder).
+- `NEXT_PUBLIC_SITE_URL` must be set in the real production environment — everything here falls back to `http://localhost:3000` otherwise, which would produce wrong canonical/OG/sitemap URLs in production.
+- No per-page OG images beyond the homepage (login/signup/etc. inherit the root layout's default Twitter/OG behavior with no dedicated image) — a reasonable scope cut since those pages aren't meant to be shared/indexed as richly as the homepage.
