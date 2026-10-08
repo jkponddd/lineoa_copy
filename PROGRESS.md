@@ -1032,6 +1032,23 @@ Closed Step 27's last noted gap: the Flex builder's `header` slot and its `icon`
 
 **Open items / not built yet**
 
-- No drag-to-reorder for carousel cards (left/right buttons only) — unchanged from Step 27, still consistent with this editor's button-based reordering elsewhere.
 - The Rich Menu / Broadcast Thai terminology audit from early in this session is already complete (Step 21) — nothing outstanding there.
 - No other explicitly-tracked open items remain — future additions here need fresh scoping.
+
+---
+
+## 2026-10-08 (continued) — Phase 1, Step 30: Carousel card drag-to-reorder
+
+Closed the last standing Broadcast/Flex open item: carousel cards could only be reordered via the left/right chevron buttons, not by dragging the card tab itself (every other reorderable list in this composer — blocks, box children — already supports drag).
+
+**What was built**
+
+- `flex-editor.tsx`: each card tab button is now a native HTML5 drag source/drop target (`draggable`, `onDragStart`/`onDragEnd`/`onDragOver`/`onDrop`), same `dragIndex` + opacity-while-dragging pattern already used for whole-block reordering in `block-editor.tsx`. Unlike that case there's no nested-interactive-child risk (a card tab is a plain button, not a container with its own drag-to-draw canvas like the Imagemap case), so the whole tab is the drag source rather than needing a separate grip handle. The existing left/right chevron buttons stay as-is for touch devices.
+
+**A test-script false negative, not a product bug, caught and root-caused before concluding anything was broken**: a first verification script fired `dragstart`/`dragover`/`drop`/`dragend` as four `dispatchEvent` calls back-to-back inside a single `page.evaluate()` call with no yield in between. React batches the `setDragIndex` update from `dragstart` and doesn't flush/re-render before the synchronously-following `drop` handler's closure reads `dragIndex` — so `drop` saw the stale pre-drag value (`null`) and silently no-opped. Confirmed by adding temporary inline `console.log`s to each handler: dispatching each event from its own `page.evaluate()` call with a real tick (`waitForTimeout`) in between let React commit between each step, and the handler logs then showed the correct values end to end (`dragstart 0` → `drop 2 dragIndex=0` → `dragend` on the now-relocated card). Re-ran with three named cards ("Card A/B/C") and confirmed the persisted block JSON's `bubbles` array reordered correctly (`[A,B,C]` → `[B,C,A]` after dragging tab 1 onto tab 3) before removing the debug logging.
+
+**Verified against a live dev server**: logged in as the seeded owner account, built a 3-card carousel with distinct per-card body text, dragged the first card onto the last position via real `DragEvent` dispatch, and confirmed via the JSON view that the underlying bubble order actually changed (not just the visual tab labels). `tsc --noEmit`, `eslint`, and `next build` all clean.
+
+**Open items / not built yet**
+
+- No other explicitly-tracked open items remain across Rich Menu/Broadcast — future additions here need fresh scoping.

@@ -26,6 +26,7 @@ import {
   type FlexSpan,
 } from "@/lib/broadcast/blocks";
 import type { EditableBlock, EditableFlexComponent, EditableFlexBubble } from "@/components/broadcast/editable-block";
+import { cn } from "@/lib/utils";
 
 type FlexBlock = Extract<EditableBlock, { type: "flex" }>;
 type BoxComponent = Extract<EditableFlexComponent, { type: "box" }>;
@@ -43,6 +44,7 @@ const CHILD_TYPES: FlexComponentType[] = ["box", "text", "image", "icon", "video
 export function FlexEditor({ block, disabled, onChange }: { block: FlexBlock; disabled?: boolean; onChange: (patch: Partial<FlexBlock>) => void }) {
   const t = useTranslations("broadcast");
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
   const activeIndex = Math.min(selectedIndex, block.bubbles.length - 1);
 
   function updateBubble(index: number, patch: Partial<EditableFlexBubble>) {
@@ -90,7 +92,17 @@ export function FlexEditor({ block, disabled, onChange }: { block: FlexBlock; di
             size="sm"
             variant={index === activeIndex ? "default" : "outline"}
             disabled={disabled}
+            draggable={!disabled}
+            onDragStart={() => setDragIndex(index)}
+            onDragEnd={() => setDragIndex(null)}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (dragIndex !== null) moveBubble(dragIndex, index);
+              setDragIndex(null);
+            }}
             onClick={() => setSelectedIndex(index)}
+            className={cn("cursor-grab", dragIndex === index && "opacity-50")}
           >
             {t("flexCardLabel", { index: index + 1 })}
           </Button>
