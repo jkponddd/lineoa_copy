@@ -1093,3 +1093,33 @@ The public Homepage was still an 18-line placeholder (hero only) — the first g
 - No dedicated `/pricing` or `/features` standalone pages — everything lives as anchored sections on the one homepage, which is standard for a single-product marketing site at this stage but could split out later if the page grows too long.
 - Billing is still explicitly a placeholder — the Pricing section's content is illustrative only and intentionally doesn't claim real checkout exists (every CTA goes to signup, not a payment flow).
 - No real product screenshots exist yet — the hero visual is a CSS mockup; swapping in real screenshots once the product has them is a natural follow-up, not a blocker.
+
+---
+
+## 2026-10-08 (continued) — Phase 1, Step 33: Security/robustness audit + baseline security headers
+
+User deferred the two decisions-pending items (payment provider, real screenshots) and asked to check the rest of the codebase for robustness/security gaps instead (webhook retry handling, rate limiting, general security review) rather than build new product surface.
+
+**Note: git is currently broken on this machine** — `/usr/bin/git` (and `/usr/bin/python3`) are blocked behind an unaccepted Xcode Command Line Tools license (`xcodebuild -license`), so git-based tooling (including the `security-review` skill, which reviews a diff) couldn't be used this session. Flagged to the user; needs `sudo xcodebuild -license` run interactively in a terminal, which isn't something to run unattended. Did a direct manual code review instead — no git needed for that.
+
+**What was checked, and found already solid**
+
+- LINE webhook idempotency: inbound messages insert with `on conflict (line_message_id) where line_message_id is not null do nothing`, backed by a real partial unique index (`messages_line_message_id_key`) — a retried webhook delivery is correctly a no-op, not a duplicate row.
+- LINE webhook signature verification (`verify-signature.ts`): HMAC-SHA256 over the exact raw body, compared with `crypto.timingSafeEqual` (with a length check first, since it throws on mismatched lengths) — not a plain `===` string comparison, so not vulnerable to a timing side-channel.
+- RLS coverage: all 11 tenant tables (`organizations`, `organization_members`, `profiles`, `audit_log`, `line_channels`, `conversations`, `messages`, `conversation_tags`, `tags`, `rich_menus`, `broadcasts`) have `enable row level security` — confirmed by cross-referencing every `create table` against every `alter table ... enable row level security` across all migrations, 1:1 match, no gaps.
+- No service-role-key leakage into client bundles — grepped every file importing `service-role.ts` and confirmed none are `"use client"` components.
+
+**What was found missing and fixed directly (no decision needed)**
+
+- `next.config.ts` had zero security headers configured. Added `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, a restrictive `Permissions-Policy` (camera/microphone/geolocation all denied — none are used), and `Strict-Transport-Security` via Next's `headers()` config, applied to every route. Verified live via `curl -D -` against the running dev server — all five headers present on a real response.
+- Deliberately did **not** add a Content-Security-Policy in the same pass — this app loads from a Supabase project's own Storage/Realtime subdomains and the LINE CDN, so a CSP has to be scoped against the actual deployment's real Supabase project URL, not guessed; guessing one risks silently breaking Storage image loads or the Realtime websocket Inbox depends on. Documented inline as the reason it's absent, not an oversight.
+
+**What was found missing and left for the user to decide (infra choice, like the payment-provider gap)**
+
+- No rate limiting anywhere — not on the LINE webhook, not on login/signup/forgot-password, not on broadcast send. A real gap for production readiness, but fixing it means picking a rate-limit backend (Upstash Redis is the standard serverless-friendly choice, but requires provisioning a new external service and API keys) rather than something safe to default into silently.
+
+**Open items / not built yet**
+
+- Rate limiting — needs the user to choose a backend before implementation starts.
+- A real Content-Security-Policy — needs to be scoped against the actual deployed Supabase project URL, not this dev environment's.
+- Payment provider (Billing) and real product screenshots (Homepage hero) — both explicitly deferred by the user this session, unchanged from Step 32.
