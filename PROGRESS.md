@@ -1052,3 +1052,21 @@ Closed the last standing Broadcast/Flex open item: carousel cards could only be 
 **Open items / not built yet**
 
 - No other explicitly-tracked open items remain across Rich Menu/Broadcast — future additions here need fresh scoping.
+
+---
+
+## 2026-10-08 (continued) — Phase 1, Step 31: Inbox search/filter + Reports date range & channel breakdown
+
+User picked "ทำตามแนะนำเลยทั้งหมด" (do all the recommended items) covering both standing User App gaps noticed when surveying what's left: Inbox had no way to narrow a long conversation list, and Reports had a hardcoded 14-day window with no way to isolate one LINE channel.
+
+**What was built**
+
+- **Inbox** (`src/app/[locale]/(app)/app/inbox/page.tsx` + new `src/components/inbox/inbox-list-view.tsx`): split the page into a server component (fetches conversations, members, the org's tags, and each conversation's tag ids) and a new client `InboxListView` that filters entirely in memory — search by contact name, status (open/closed), assignee (all/me/unassigned/a specific member), and tag — following the exact same `useState` + `useMemo` pattern already established by `AuditLogTable`/`TagManager`, not a new pattern. Realtime refresh (`RealtimeRefresh`) still re-triggers the server fetch on any change; the client filters just re-apply to the refreshed list.
+- **Reports** (`src/app/[locale]/(app)/app/reports/page.tsx` + new `src/components/reports/reports-filters.tsx`): added a `days` (7/14/30/90) and `channel` searchParam, both driven by a small client `ReportsFilters` component that updates the URL via `next/navigation`'s `useSearchParams` + `@/i18n/navigation`'s `useRouter`/`usePathname` (so it's a real server-rendered filter, not client-side slicing of pre-fetched data — consistent with this page already being a server component doing live Supabase aggregation). A deliberate split in what the date range affects: conversation open/closed/total counts stay an all-time **snapshot** (an "open conversation" means open right now, not opened within the window), while every message-activity metric (total/inbound/outbound message counts, the day-bucket chart, top-agents table) is scoped to the selected range — documented inline since it's not obvious from the code alone. The channel filter resolves to a list of that channel's conversation ids first (the `messages` table has no `line_channel_id` of its own, only `conversation_id`), then applies `.in("conversation_id", ids)` to every message-level query.
+
+**Verified against the live database and a live dev server**: seeded 4 conversations (mixed open/closed, mixed assignee) with 2 tags and 12 messages spread across "1 day ago" and "10 days ago" timestamps under the real seeded test org, via a service-role script — then drove the actual UI: confirmed search/status/assignee/tag filters each narrow the Inbox list to the exact expected row(s) (down to a single correctly-tagged, correctly-assigned conversation after stacking all four filters); confirmed Reports' default 14-day view counts all 12 messages, switching to 7 days correctly drops to 8 (excluding the 10-day-old ones) while the conversation snapshot counts (4/3/1) stay unchanged as designed; confirmed filtering by the one real LINE channel reproduces identical counts (the only live way to validate the channel-scoping query without a second real LINE channel). Checked both pages at mobile/dark-mode per CLAUDE.md's per-screen checklist. Cleaned up every seeded row immediately after (verified empty via a final count query) — the real seeded test org is unaffected. `tsc --noEmit`, `eslint`, and `next build` all clean throughout.
+
+**Open items / not built yet**
+
+- Reports' channel filter was only verified against a single real channel (same-result invariant), not against two distinct channels with different message counts — would need a second live LINE channel with a real access token to test end-to-end, which wasn't available in this session.
+- No other explicitly-tracked open items remain — future additions need fresh scoping.

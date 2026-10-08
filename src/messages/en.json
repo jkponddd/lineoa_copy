@@ -150,7 +150,14 @@
     "statusClosed": "Closed",
     "statusUpdateError": "Failed to update status. Please try again.",
     "addTag": "Add tag",
-    "removeTag": "Remove tag"
+    "removeTag": "Remove tag",
+    "searchPlaceholder": "Search by contact name...",
+    "filterAllStatus": "All statuses",
+    "filterStatusOpen": "Open",
+    "filterAllAssignees": "All assignees",
+    "filterAssignedToMe": "Assigned to me",
+    "filterAllTags": "All tags",
+    "filterEmpty": "No conversations match these filters"
   },
   "auditLog": {
     "title": "Audit Log",
@@ -218,7 +225,7 @@
     "statOpenConversations": "Open",
     "statClosedConversations": "Closed",
     "statTotalMessages": "Total messages",
-    "chartTitle": "Messages per day (last 14 days)",
+    "chartTitle": "Messages per day (last {days} days)",
     "chartInbound": "Inbound",
     "chartOutbound": "Outbound",
     "chartViewToggleTable": "View as table",
@@ -227,7 +234,9 @@
     "topAgentsTitle": "Top agents by messages sent",
     "topAgentsEmpty": "No outbound messages yet.",
     "tableAgent": "Agent",
-    "tableMessagesSent": "Messages sent"
+    "tableMessagesSent": "Messages sent",
+    "filterRangeDays": "Last {days} days",
+    "filterAllChannels": "All channels"
   },
   "broadcast": {
     "title": "Broadcast",

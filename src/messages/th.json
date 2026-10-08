@@ -150,7 +150,14 @@
     "statusClosed": "ปิดแล้ว",
     "statusUpdateError": "เปลี่ยนสถานะไม่สำเร็จ กรุณาลองใหม่",
     "addTag": "เพิ่มแท็ก",
-    "removeTag": "ลบแท็ก"
+    "removeTag": "ลบแท็ก",
+    "searchPlaceholder": "ค้นหาชื่อผู้ติดต่อ...",
+    "filterAllStatus": "ทุกสถานะ",
+    "filterStatusOpen": "เปิดอยู่",
+    "filterAllAssignees": "ผู้รับผิดชอบทั้งหมด",
+    "filterAssignedToMe": "มอบหมายให้ฉัน",
+    "filterAllTags": "แท็กทั้งหมด",
+    "filterEmpty": "ไม่พบบทสนทนาที่ตรงกับตัวกรอง"
   },
   "auditLog": {
     "title": "บันทึกการตรวจสอบ",
@@ -218,7 +225,7 @@
     "statOpenConversations": "กำลังเปิด",
     "statClosedConversations": "ปิดแล้ว",
     "statTotalMessages": "ข้อความทั้งหมด",
-    "chartTitle": "ข้อความต่อวัน (14 วันล่าสุด)",
+    "chartTitle": "ข้อความต่อวัน ({days} วันล่าสุด)",
     "chartInbound": "ข้อความเข้า",
     "chartOutbound": "ข้อความออก",
     "chartViewToggleTable": "ดูแบบตาราง",
@@ -227,7 +234,9 @@
     "topAgentsTitle": "เจ้าหน้าที่ที่ตอบมากที่สุด",
     "topAgentsEmpty": "ยังไม่มีข้อความที่ส่งออก",
     "tableAgent": "เจ้าหน้าที่",
-    "tableMessagesSent": "ข้อความที่ส่ง"
+    "tableMessagesSent": "ข้อความที่ส่ง",
+    "filterRangeDays": "{days} วันล่าสุด",
+    "filterAllChannels": "ทุก Channel"
   },
   "broadcast": {
     "title": "บรอดแคสต์",
