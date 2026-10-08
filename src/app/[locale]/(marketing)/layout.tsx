@@ -21,6 +21,12 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
       </header>
 
       <main className="flex-1">{children}</main>
+
+      <footer className="border-t px-4 py-6 text-center text-sm text-muted-foreground lg:px-8">
+        <p>
+          {t("appName")} © {new Date().getFullYear()}
+        </p>
+      </footer>
     </div>
   );
 }

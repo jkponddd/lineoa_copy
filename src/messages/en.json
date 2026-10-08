@@ -49,7 +49,85 @@
   "marketing": {
     "title": "Manage your LINE Official Account like a pro",
     "description": "One platform for inbox, broadcast, and reporting for your LINE OA.",
-    "cta": "Get started"
+    "cta": "Get started",
+    "ctaSecondary": "See all features",
+    "finalCtaTitle": "Ready to run your LINE OA like a pro?",
+    "finalCtaDescription": "Get started right away — no credit card required.",
+    "features": {
+      "title": "Every tool your team needs",
+      "description": "Manage conversations, broadcasts, rich menus, and your team — all in one place.",
+      "item0Title": "Real-time inbox",
+      "item0Description": "Reply to customers instantly, assign conversations to your team, and tag them for easy filtering.",
+      "item1Title": "Broadcast messaging",
+      "item1Description": "Compose rich messages with images, video, Flex Messages, and Imagemaps, with a live preview before you send.",
+      "item2Title": "Customizable rich menus",
+      "item2Description": "Design rich menus by drawing tap areas directly — no code required.",
+      "item3Title": "Reports & analytics",
+      "item3Description": "See a real-time overview of conversations, messages, and your team's performance.",
+      "item4Title": "Team & role management",
+      "item4Description": "Split access into owner, agent, and analyst roles, and manage multiple people under one organization.",
+      "item5Title": "Multi-language & themes",
+      "item5Description": "Works in both Thai and English, with light and dark themes to match your preference."
+    },
+    "howItWorks": {
+      "title": "Get started in 3 steps",
+      "description": "No complexity — you can be up and running without any technical background.",
+      "step0Title": "Connect your LINE OA",
+      "step0Description": "Enter the Channel ID and Access Token from the LINE Developers Console.",
+      "step1Title": "Manage conversations & send broadcasts",
+      "step1Description": "Reply to customers, assign work to your team, and message all your followers at once.",
+      "step2Title": "Track the results",
+      "step2Description": "Use reports and analytics to continuously improve how your team works."
+    },
+    "pricing": {
+      "title": "Pricing for every size of business",
+      "description": "Start for free, upgrade as your business grows.",
+      "popularBadge": "Most popular",
+      "disclaimer": "Sample pricing for demonstration — adjust to match your actual business plans.",
+      "free": {
+        "name": "Starter",
+        "price": "$0",
+        "priceUnit": "/month",
+        "feature0": "1 LINE Channel",
+        "feature1": "2 team members",
+        "feature2": "Basic inbox & broadcast",
+        "feature3": "Overview reports",
+        "cta": "Start for free"
+      },
+      "pro": {
+        "name": "Pro",
+        "price": "$29",
+        "priceUnit": "/month",
+        "feature0": "Multiple LINE Channels",
+        "feature1": "Unlimited team members",
+        "feature2": "Full rich menu & Flex Message builder",
+        "feature3": "Advanced, per-channel reports",
+        "cta": "Get started"
+      },
+      "enterprise": {
+        "name": "Enterprise",
+        "price": "Contact us",
+        "priceUnit": "",
+        "feature0": "Multiple organizations under one contract",
+        "feature1": "Advanced access controls",
+        "feature2": "Dedicated support",
+        "feature3": "Service-level agreement (SLA)",
+        "cta": "Get started"
+      }
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "q0": "How do I connect my LINE OA?",
+      "a0": "Go to LINE Channels in the Admin Panel and enter the Channel ID, Channel Secret, and Access Token from the LINE Developers Console. A webhook URL is generated for you automatically.",
+      "q1": "Does it support multiple organizations or channels?",
+      "a1": "Yes — it's built as a multi-tenant platform that supports multiple organizations and LINE Channels in one deployment, each seeing only their own data.",
+      "q2": "How secure are my credentials?",
+      "a2": "Your Channel Secret and Access Token are stored encrypted — never as plain text in the database or exposed to the client.",
+      "q3": "Do I need technical knowledge to use it?",
+      "a3": "No — the interface is designed to be as easy to use as a banking app, on both mobile and desktop.",
+      "q4": "Is there a free trial?",
+      "a4": "Yes — you can sign up and start using it right away, no credit card required."
+    }
   },
   "app": {
     "sectionTitle": "User App",

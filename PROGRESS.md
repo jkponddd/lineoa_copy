@@ -1070,3 +1070,26 @@ User picked "ทำตามแนะนำเลยทั้งหมด" (do a
 
 - Reports' channel filter was only verified against a single real channel (same-result invariant), not against two distinct channels with different message counts — would need a second live LINE channel with a real access token to test end-to-end, which wasn't available in this session.
 - No other explicitly-tracked open items remain — future additions need fresh scoping.
+
+---
+
+## 2026-10-08 (continued) — Phase 1, Step 32: Real marketing Homepage
+
+The public Homepage was still an 18-line placeholder (hero only) — the first genuine build-out of that surface per CLAUDE.md's three-surface product scope. Scoped via two `AskUserQuestion` rounds: which sections (user picked all of Features/How it works/Pricing/FAQ), and which sales angle (user picked "sell the LINE OA management product," not "sell the template to other developers"). Checked Rich Menu (already has search/filter from Step 21, no gap) and Billing (deliberately a placeholder pending the user's own choice of payment provider — flagged rather than guessed) before landing on this as the actual open surface.
+
+**What was built**
+
+- New `src/components/ui/accordion.tsx` — a shadcn-style wrapper around Base UI's `Accordion` primitive (Root/Item/Header/Trigger/Panel), matching this project's existing wrapper convention (see `dialog.tsx`/`select.tsx`) rather than a one-off FAQ-only widget, since it's a reusable base component.
+- New `src/components/marketing/`: `hero-mockup.tsx` (a plain-div, CSS-drawn stand-in for a product screenshot — deliberately not a real image, since none exist, and explicitly called out in its own comment so it's never mistaken for an actual capture), `features-section.tsx` (6 feature cards: inbox, broadcast, rich menu, reports, team/roles, i18n+themes), `how-it-works-section.tsx` (3-step numbered flow), `pricing-section.tsx` (3 illustrative tiers — Free/Pro/Enterprise — with a visible disclaimer that the numbers are a demonstration starting point, since no payment provider is wired up yet; every tier's CTA routes to `/signup`, never a non-functional "buy" button), `faq-section.tsx` (5 questions using the new Accordion).
+- Rewrote `src/app/[locale]/(marketing)/page.tsx` to assemble hero (enhanced with a secondary "see features" CTA that anchor-scrolls to `#features`) + all four new sections + a final CTA band. Added a plain footer to `(marketing)/layout.tsx`.
+- Full `marketing.*` i18n namespace added to both `en.json`/`th.json` (title/description copy, features, howItWorks, pricing, faq — every section's content, not just labels) — content written for the "selling the LINE OA product to a business" angle the user picked, not the meta "this is a resellable template" angle.
+
+**A deliberate content-honesty constraint applied throughout**: no fabricated testimonials, customer logos, or "real" screenshots — the user didn't ask for social proof and inventing fake customer quotes/reviews would misrepresent the product, so the page relies on features/process/pricing/FAQ content only, and the one visual (hero mockup) is unmistakably a stylized diagram rather than something that could pass as a captured screenshot.
+
+**Verified against a live dev server**: checked the full page in Thai and English, light and dark mode, and at mobile/tablet/desktop widths (12 combinations via screenshots) — hero, feature grid, how-it-works, pricing cards (with the "Pro" tier's "popular" badge), and FAQ accordion all render correctly and responsively in every combination; confirmed the FAQ accordion actually opens/closes and rotates its chevron on click; confirmed the secondary hero CTA scrolls to `#features` via a real anchor link; confirmed every pricing tier's CTA resolves to `/[locale]/signup`. `tsc --noEmit`, `eslint`, and `next build` all clean throughout.
+
+**Open items / not built yet**
+
+- No dedicated `/pricing` or `/features` standalone pages — everything lives as anchored sections on the one homepage, which is standard for a single-product marketing site at this stage but could split out later if the page grows too long.
+- Billing is still explicitly a placeholder — the Pricing section's content is illustrative only and intentionally doesn't claim real checkout exists (every CTA goes to signup, not a payment flow).
+- No real product screenshots exist yet — the hero visual is a CSS mockup; swapping in real screenshots once the product has them is a natural follow-up, not a blocker.
