@@ -1170,3 +1170,27 @@ User asked whether Step 34 covered AEO (Answer Engine Optimization) and GEO (Gen
 
 - No `BreadcrumbList` schema — not very meaningful yet with only one real public page (the homepage); worth adding once /pricing or /features split into their own routes.
 - Same `NEXT_PUBLIC_SITE_URL` caveat as Step 34 — llms.txt/llms-full.txt's links fall back to `http://localhost:3000` until it's set in production.
+
+---
+
+## 2026-10-08 (continued) — Phase 1, Step 36: Branded 404/error pages, web manifest, generated icons
+
+User said to keep going (deferring the 3 infra-decision items from Step 35 — git license, site URL, rate-limit backend). Continued the same "fill in safe, no-decision-needed gaps" pattern from Steps 33–35: the app had no custom 404 or error boundary (Next.js's generic unstyled defaults), no web app manifest, and no real icon beyond a bare `favicon.ico`.
+
+**What was built**
+
+- `src/app/[locale]/not-found.tsx` and `src/app/[locale]/error.tsx` — branded, i18n'd, theme-aware pages matching the rest of the app (same icon-badge + heading + description + button layout as the Settings/Danger Zone patterns elsewhere). `error.tsx` is a Client Component per Next.js's requirement for error boundaries; deliberately doesn't log the caught error anywhere, since no error-tracking service is wired up yet.
+- New `errors` i18n namespace (both locales) backing both pages.
+- `src/app/icon.tsx`, `apple-icon.tsx`, and dedicated `icon-192/route.tsx` / `icon-512/route.tsx` — all generated via `next/og`'s `ImageResponse` (the same technique as Step 32's OG image), since no real logo asset exists: a simple dark-square-with-white-dot mark, consistent with the OG image's branding. The two fixed-path routes exist because Next's auto-detected icon convention doesn't give a stable URL to reference from a manifest.
+- `src/app/manifest.ts` — a proper web app manifest (name, icons, `display: "standalone"`, theme/background colors) pointing at those two icon routes.
+
+**A real bug found and fixed via live verification, not just code review**: the new icon/apple-icon routes initially 404'd — `curl`ing `/icon` returned a 307 redirect to `/th/icon` instead of the image. `proxy.ts`'s matcher excludes dotted paths (robots.txt, sitemap.xml) automatically, but the generated icon routes have no file extension of their own, so next-intl's middleware treated them as ordinary pages needing a locale prefix. Fixed by adding `icon|apple-icon` to the matcher's negative-lookahead exclusion list (`icon` as a bare alternative also covers `icon-192`/`icon-512` via prefix match, confirmed by testing each one directly rather than assuming).
+
+**A second real bug found the same way**: the new `not-found.tsx` never actually rendered — hitting a nonsense URL showed Next.js's generic unstyled "404 / This page could not be found" instead. Root-caused: a nested `not-found.tsx` only activates when `notFound()` is explicitly thrown from a page that *did* match that route segment; a fully unmatched path (no page.tsx matches at any depth) falls through to Next's own root-level default instead, bypassing the `[locale]` layout tree entirely. Fixed with the standard next-intl-recommended pattern: a `src/app/[locale]/[...rest]/page.tsx` catch-all that calls `notFound()` itself — since that catch-all page *does* match, its `notFound()` call correctly triggers the sibling `not-found.tsx` this time.
+
+**Verified against a live dev server**: confirmed `/icon`, `/icon-192`, `/icon-512`, and `/apple-icon` each serve a real PNG at the correct declared size after the proxy fix; confirmed `/manifest.webmanifest` returns valid JSON referencing those icons and that `<link rel="manifest">`/`icon`/`apple-touch-icon"` tags appear in the page `<head>`; confirmed `robots.txt`/`sitemap.xml`/`llms.txt` still work unaffected by the proxy matcher change; drove a real browser to a nonexistent URL and to a deliberately-throwing scratch test page (removed after) and confirmed the branded 404 and error pages render correctly in Thai, English, and dark mode, with working "back home"/"retry" buttons. `tsc --noEmit`, `eslint`, and `next build` all clean throughout.
+
+**Open items / not built yet**
+
+- No per-route `loading.tsx` — deliberately did not add a generic one at the `[locale]` level, since that would wrap the entire `(app)`/`(admin)` shell (including the sidebar) in every navigation's Suspense fallback, making the whole UI flash away on every in-app link click rather than just the content area. Doing this properly means placing `loading.tsx` inside each individual heavy route segment, which is a larger, more deliberate follow-up, not a quick fill-in.
+- No real error-tracking/reporting service — `error.tsx` catches and lets the user retry, but nothing is actually logged anywhere yet.

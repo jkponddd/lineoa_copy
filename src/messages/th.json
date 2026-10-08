@@ -10,6 +10,14 @@
     "signOut": "ออกจากระบบ",
     "accountMenu": "เมนูบัญชีผู้ใช้"
   },
+  "errors": {
+    "notFoundTitle": "ไม่พบหน้านี้",
+    "notFoundDescription": "หน้าที่คุณค้นหาอาจถูกย้าย ลบ หรือไม่เคยมีอยู่",
+    "notFoundBackHome": "กลับหน้าแรก",
+    "genericTitle": "เกิดข้อผิดพลาดบางอย่าง",
+    "genericDescription": "ขออภัยในความไม่สะดวก กรุณาลองใหม่อีกครั้ง",
+    "retryButton": "ลองอีกครั้ง"
+  },
   "seo": {
     "defaultTitle": "LINE OA Platform",
     "defaultDescription": "แพลตฟอร์มสำหรับจัดการกล่องข้อความ บรอดแคสต์ ริชเมนู และรายงานของ LINE Official Account แบบครบวงจร",

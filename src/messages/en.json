@@ -10,6 +10,14 @@
     "signOut": "Sign out",
     "accountMenu": "Account menu"
   },
+  "errors": {
+    "notFoundTitle": "Page not found",
+    "notFoundDescription": "The page you're looking for may have moved, been removed, or never existed.",
+    "notFoundBackHome": "Back to home",
+    "genericTitle": "Something went wrong",
+    "genericDescription": "Sorry about that. Please try again.",
+    "retryButton": "Try again"
+  },
   "seo": {
     "defaultTitle": "LINE OA Platform",
     "defaultDescription": "One platform for inbox, broadcast, rich menu, and reporting for your LINE Official Account.",

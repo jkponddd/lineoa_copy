@@ -44,5 +44,11 @@ export const config = {
   // exchange route) isn't locale-prefixed and must never be rewritten to
   // /th/auth/confirm — found by testing the password reset flow, where
   // next-intl's routing was silently redirecting the link and breaking it.
-  matcher: ["/((?!api|auth|trpc|_next|_vercel|.*\\..*).*)"],
+  // The `.*\.` exclusion already skips dotted paths (robots.txt,
+  // sitemap.xml) automatically, but Next's generated icon/apple-icon
+  // routes have no file extension of their own — found the same way,
+  // testing them directly and seeing a 307 to /th/icon (404) instead of
+  // the image. `icon` as a bare alternative here also covers icon-192 and
+  // icon-512 (the lookahead only needs to match as a prefix).
+  matcher: ["/((?!api|auth|trpc|_next|_vercel|icon|apple-icon|.*\\..*).*)"],
 };
