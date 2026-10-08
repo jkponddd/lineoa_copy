@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,6 @@ function SubmitButton({ label }: { label: string }) {
 
 export function AddMemberSheet() {
   const t = useTranslations("orgMembers");
-  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [role, setRole] = useState<OrgRole>("agent");
   const [state, formAction] = useActionState(addMember, initialState);
@@ -79,7 +78,6 @@ export function AddMemberSheet() {
 
         <form action={formAction} className="flex flex-col gap-4 px-4">
           <input type="hidden" name="role" value={role} />
-          <input type="hidden" name="locale" value={locale} />
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="email">{t("emailLabel")}</Label>

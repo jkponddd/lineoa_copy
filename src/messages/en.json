@@ -173,7 +173,8 @@
     "actionLineChannelConnected": "LINE channel connected",
     "actionLineChannelDisconnected": "LINE channel disconnected",
     "actionOrganizationRenamed": "Organization renamed",
-    "actionOrganizationLogoUpdated": "Organization logo updated"
+    "actionOrganizationLogoUpdated": "Organization logo updated",
+    "actionOrganizationSettingsUpdated": "Organization settings updated"
   },
   "orgSettings": {
     "title": "Organization",
@@ -187,6 +188,28 @@
     "nameRequired": "Organization name is required.",
     "saveButton": "Save",
     "saved": "Saved"
+  },
+  "systemSettings": {
+    "title": "System Settings",
+    "description": "Organization-wide defaults and advanced management.",
+    "defaultsTitle": "Organization defaults",
+    "defaultLocaleLabel": "Default language for new members",
+    "defaultLocaleHint": "Used when inviting a new member — their confirmation link opens in this language.",
+    "localeThai": "Thai",
+    "localeEnglish": "English",
+    "defaultTimezoneLabel": "Timezone for scheduling broadcasts",
+    "defaultTimezoneHint": "Times chosen when scheduling a broadcast are interpreted in this timezone.",
+    "saveButton": "Save",
+    "saved": "Saved",
+    "cancelButton": "Cancel",
+    "dangerZoneTitle": "Danger Zone",
+    "deleteOrgDescription": "Permanently delete this organization and everything in it (conversations, broadcasts, rich menus, members, and more). This can't be undone.",
+    "deleteOrgButton": "Delete organization",
+    "deletingOrg": "Deleting...",
+    "deleteOrgConfirmTitle": "Confirm organization deletion",
+    "deleteOrgConfirmDescription": "This will permanently delete \"{name}\" and everything in it. This can't be undone. Type the organization's name to confirm.",
+    "deleteOrgConfirmLabel": "Organization name",
+    "deleteNameMismatch": "That doesn't match the organization's name."
   },
   "reports": {
     "title": "Reports",
@@ -297,6 +320,7 @@
     "sortNewestFirst": "Newest first",
     "sortOldestFirst": "Oldest first",
     "scheduleToggle": "Schedule for later",
+    "scheduleTimezoneHint": "Times are interpreted in this organization's timezone ({timezone}).",
     "scheduleButton": "Schedule",
     "scheduleConfirm": "Schedule this message to send at the chosen time?",
     "scheduleSuccess": "Scheduled successfully.",

@@ -5,7 +5,7 @@ import type { OrgRole } from "./database.types";
 
 export type CurrentMembership = {
   user: { id: string; email: string | null; fullName: string | null };
-  organization: { id: string; name: string; slug: string };
+  organization: { id: string; name: string; slug: string; defaultLocale: string; defaultTimezone: string };
   role: OrgRole;
 };
 
@@ -37,7 +37,11 @@ export async function getCurrentMembership(): Promise<CurrentMembership | null> 
   if (!membership) return null;
 
   const [{ data: organization }, { data: profile }] = await Promise.all([
-    supabase.from("organizations").select("id, name, slug").eq("id", membership.organization_id).single(),
+    supabase
+      .from("organizations")
+      .select("id, name, slug, default_locale, default_timezone")
+      .eq("id", membership.organization_id)
+      .single(),
     supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
   ]);
 
@@ -45,7 +49,13 @@ export async function getCurrentMembership(): Promise<CurrentMembership | null> 
 
   return {
     user: { id: user.id, email: user.email ?? null, fullName: profile?.full_name ?? null },
-    organization,
+    organization: {
+      id: organization.id,
+      name: organization.name,
+      slug: organization.slug,
+      defaultLocale: organization.default_locale,
+      defaultTimezone: organization.default_timezone,
+    },
     role: membership.role,
   };
 }

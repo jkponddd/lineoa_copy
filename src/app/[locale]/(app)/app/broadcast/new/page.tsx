@@ -6,6 +6,7 @@ import { getBroadcastComposerContext } from "@/app/[locale]/(app)/app/broadcast/
 import { BroadcastComposer, type InitialComposerValues } from "@/components/broadcast/broadcast-composer";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "@/i18n/navigation";
+import { blockMediaPaths } from "@/lib/broadcast/blocks";
 import type { BroadcastBlock } from "@/lib/supabase/database.types";
 
 export default async function NewBroadcastPage({
@@ -37,7 +38,14 @@ export default async function NewBroadcastPage({
     if (row) {
       mode = draftId ? "edit" : "copy";
       const blocks = row.blocks as BroadcastBlock[];
-      const mediaPaths = blocks.flatMap((b) => (b.type === "image" ? [b.mediaPath] : b.type === "video" ? [b.mediaPath, b.previewMediaPath] : []));
+      // blockMediaPaths already knows every media-bearing field per block
+      // type (including flex's nested hero/body/footer images) — reusing
+      // it here instead of a bespoke list keeps this in sync with the
+      // block model automatically. The signed/public distinction it
+      // reports doesn't matter for this read-only editor preview (the
+      // admin's own browser can use a signed URL regardless of a block's
+      // eventual mode), so both kinds are just resolved the same way.
+      const mediaPaths = blocks.flatMap((b) => blockMediaPaths(b).map((entry) => entry.path));
 
       const mediaUrlByPath: Record<string, string> = {};
       if (mediaPaths.length > 0) {
@@ -59,18 +67,29 @@ export default async function NewBroadcastPage({
     }
   }
 
-  return <NewBroadcastView channels={channels} organizationId={orgId} contacts={contacts} initialValues={initialValues} mode={mode} />;
+  return (
+    <NewBroadcastView
+      channels={channels}
+      organizationId={orgId}
+      organizationTimezone={membership.organization.defaultTimezone}
+      contacts={contacts}
+      initialValues={initialValues}
+      mode={mode}
+    />
+  );
 }
 
 function NewBroadcastView({
   channels,
   organizationId,
+  organizationTimezone,
   contacts,
   initialValues,
   mode,
 }: {
   channels: { id: string; display_name: string }[];
   organizationId: string;
+  organizationTimezone: string;
   contacts: Parameters<typeof BroadcastComposer>[0]["contacts"];
   initialValues: InitialComposerValues | null;
   mode: "create" | "edit" | "copy";
@@ -101,7 +120,13 @@ function NewBroadcastView({
               </Link>
             </div>
           ) : (
-            <BroadcastComposer channels={channels} organizationId={organizationId} contacts={contacts} initialValues={initialValues} />
+            <BroadcastComposer
+              channels={channels}
+              organizationId={organizationId}
+              organizationTimezone={organizationTimezone}
+              contacts={contacts}
+              initialValues={initialValues}
+            />
           )}
         </CardContent>
       </Card>

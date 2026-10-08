@@ -6,6 +6,7 @@ import { getCurrentMembership } from "@/lib/supabase/get-current-membership";
 import { BroadcastHistoryTable, type BroadcastHistoryRow } from "@/components/broadcast/broadcast-history-table";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
+import { blockMediaPaths } from "@/lib/broadcast/blocks";
 
 export default async function BroadcastPage() {
   const membership = await getCurrentMembership();
@@ -28,9 +29,7 @@ export default async function BroadcastPage() {
   const channelNameById = new Map((channels ?? []).map((c) => [c.id, c.display_name]));
   const memberById = new Map((members ?? []).map((m) => [m.user_id, m]));
 
-  const mediaPaths = (history ?? []).flatMap((b) =>
-    b.blocks.flatMap((block) => (block.type === "image" ? [block.mediaPath] : block.type === "video" ? [block.previewMediaPath] : [])),
-  );
+  const mediaPaths = (history ?? []).flatMap((b) => b.blocks.flatMap((block) => blockMediaPaths(block).map((entry) => entry.path)));
   const mediaUrlByPath = new Map<string, string>();
   if (mediaPaths.length > 0) {
     await Promise.all(
@@ -48,6 +47,7 @@ export default async function BroadcastPage() {
       channelNameById={channelNameById}
       memberById={memberById}
       mediaUrlByPath={mediaUrlByPath}
+      organizationTimezone={membership.organization.defaultTimezone}
     />
   );
 }
@@ -58,12 +58,14 @@ function BroadcastView({
   channelNameById,
   memberById,
   mediaUrlByPath,
+  organizationTimezone,
 }: {
   channels: { id: string; display_name: string }[];
   history: BroadcastHistoryRow[];
   channelNameById: Map<string, string>;
   memberById: Map<string, { full_name: string | null; email: string }>;
   mediaUrlByPath: Map<string, string>;
+  organizationTimezone: string;
 }) {
   const t = useTranslations("broadcast");
 
@@ -94,6 +96,7 @@ function BroadcastView({
           channelNameById={channelNameById}
           memberById={memberById}
           mediaUrlByPath={mediaUrlByPath}
+          organizationTimezone={organizationTimezone}
         />
       )}
     </div>

@@ -45,6 +45,8 @@ export type Database = {
           name: string;
           slug: string;
           logo_url: string | null;
+          default_locale: string;
+          default_timezone: string;
           created_at: string;
           updated_at: string;
         };
@@ -53,6 +55,8 @@ export type Database = {
           name: string;
           slug: string;
           logo_url?: string | null;
+          default_locale?: string;
+          default_timezone?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -269,6 +273,10 @@ export type Database = {
       };
       delete_line_channel: {
         Args: { p_line_channel_id: string };
+        Returns: undefined;
+      };
+      delete_organization: {
+        Args: { p_organization_id: string };
         Returns: undefined;
       };
       get_user_id_by_email: {

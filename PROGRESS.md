@@ -987,3 +987,27 @@ Closed the last standing item from Step 22: a Flex block was always exactly one 
 - Flex's `header` slot and `icon`/`span`/`video` components still aren't built — scoped to box/text/image/button/separator, which covers most real usage.
 - No drag-to-reorder for carousel cards (left/right buttons only) — consistent with the rest of this editor's list-reordering, which is deliberately button-based rather than a custom pointer-drag implementation at every nesting level.
 - This was the last explicitly-tracked open item from the Broadcast composer work — future additions here would need fresh scoping.
+
+---
+
+## 2026-09-30 — Phase 1, Step 28: System Settings page (org defaults + delete organization)
+
+Built the Admin Panel's "ตั้งค่าระบบ" page — the one remaining Admin Panel screen, scoped via the user confirming "ทั้งสองอย่าง" (both org-level defaults AND Danger Zone delete-organization).
+
+**What was built**
+
+- Migration `20260925000000_org_settings.sql`: `organizations` gains `default_locale` (`th`/`en`, checked) and `default_timezone`; a new `delete_organization(p_organization_id)` SECURITY DEFINER function that explicitly deletes the org's `vault.secrets` rows (via each `line_channels` row's `channel_secret_id`/`channel_access_token_id`) before deleting the organization — cascade handles every other tenant table automatically.
+- `src/lib/timezone.ts`: `zonedTimeToUtcIso` / `nowInTimeZoneInputValue`, using the `Intl.DateTimeFormat` double-format trick (no library) to convert between an org's IANA timezone and UTC. Wired into `broadcast-composer.tsx` (schedule input default + submit conversion) and `broadcast-history-table.tsx` (scheduled-time display), replacing naive `new Date(...)` calls that were silently using the browser's local timezone instead of the organization's.
+- `default_locale` now drives the invite-link locale in `admin/users/actions.ts` (`addMember`) instead of the inviting admin's own current locale — removed the now-dead `locale` hidden field from `add-member-sheet.tsx`.
+- New `admin/settings/page.tsx` + `org-defaults-form.tsx` (locale/timezone Selects, save via `updateOrganizationDefaults`, logs `organization.settings_updated` to the audit log) + `danger-zone-card.tsx` (type-to-confirm org name, calls `deleteOrganization` → `delete_organization()` RPC, redirects to `/onboarding` on success).
+- Added the `organization.settings_updated` → `actionOrganizationSettingsUpdated` audit-log label mapping (was missing initially, added once noticed).
+- Fixed an unrelated, pre-existing gap noticed while touching the broadcast pages: `/app/broadcast/new` and `/app/broadcast` both had stale inline `mediaPaths` logic that predated `blockMediaPaths()` and never accounted for Flex blocks' nested images — a saved draft/copy or history row with a Flex block would show broken previews. Both now use `blockMediaPaths()`.
+
+**A real bug caught by live verification, not just a test artifact this time**: the Danger Zone's delete flow failed every single time with "Cannot remove the last owner of an organization" — a pre-existing safeguard trigger (`prevent_last_owner_removal`, from Step org-member-management work) correctly blocks removing an org's last owner via the *member management* UI, but doesn't distinguish that case from the owner's membership row being removed because the **organization itself** is being deleted via cascade, which always ends at zero owners by design. Since almost every org has exactly one owner, this blocked deletion unconditionally. Root-caused by reading the error text surfaced in a screenshot during a live Playwright run, confirmed by reading the trigger function directly. Fixed via a second migration (`20260930000000_fix_last_owner_removal_on_org_delete.sql`): the trigger now skips its check when the parent `organizations` row no longer exists (safe — within a cascading `DELETE`, the parent row is already gone by the time the child row's trigger fires, same command/transaction). Re-verified live after the fix: delete now succeeds and redirects to onboarding.
+
+**Verified against a live dev server and the live database**: created a fully disposable test user + org (never touching the real seeded test accounts) via Playwright driving the actual signup/onboarding/login UI; saved org defaults and confirmed both the DB row and a matching `organization.settings_updated` audit log entry; checked the page at desktop/tablet/mobile widths and in light/dark; ran the Danger Zone delete flow twice (pre-fix failure, post-fix success) and confirmed via a service-role query that the org row was actually gone. `tsc --noEmit`, `eslint`, and `next build` all clean throughout.
+
+**Open items / not built yet**
+
+- The Vault-secret-cleanup half of `delete_organization()` (deleting `vault.secrets` for an org's LINE channels) was verified by code review and by reuse of the already-proven `delete_line_channel()` pattern, not by a fresh live run with a real channel — connecting a LINE channel validates the access token against LINE's real API, which a disposable test org has no legitimate token for.
+- No further explicitly-tracked open items from this batch of Admin Panel work — future additions here would need fresh scoping.

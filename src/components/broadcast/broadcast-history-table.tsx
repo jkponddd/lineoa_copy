@@ -43,12 +43,14 @@ export function BroadcastHistoryTable({
   channelNameById,
   memberById,
   mediaUrlByPath,
+  organizationTimezone,
 }: {
   history: BroadcastHistoryRow[];
   channels: { id: string; display_name: string }[];
   channelNameById: Map<string, string>;
   memberById: Map<string, { full_name: string | null; email: string }>;
   mediaUrlByPath: Map<string, string>;
+  organizationTimezone: string;
 }) {
   const t = useTranslations("broadcast");
   const [search, setSearch] = useState("");
@@ -153,7 +155,7 @@ export function BroadcastHistoryTable({
                     {isScheduled && broadcast.scheduled_at ? (
                       <div className="flex flex-col">
                         <span className="text-xs">{t("scheduledForLabel")}</span>
-                        <span>{new Date(broadcast.scheduled_at).toLocaleString()}</span>
+                        <span>{new Date(broadcast.scheduled_at).toLocaleString(undefined, { timeZone: organizationTimezone })}</span>
                       </div>
                     ) : (
                       new Date(broadcast.created_at).toLocaleString()

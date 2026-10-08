@@ -173,7 +173,8 @@
     "actionLineChannelConnected": "เชื่อมต่อ LINE Channel",
     "actionLineChannelDisconnected": "ยกเลิกการเชื่อมต่อ LINE Channel",
     "actionOrganizationRenamed": "เปลี่ยนชื่อองค์กร",
-    "actionOrganizationLogoUpdated": "เปลี่ยนโลโก้องค์กร"
+    "actionOrganizationLogoUpdated": "เปลี่ยนโลโก้องค์กร",
+    "actionOrganizationSettingsUpdated": "แก้ไขการตั้งค่าองค์กร"
   },
   "orgSettings": {
     "title": "องค์กร",
@@ -187,6 +188,28 @@
     "nameRequired": "กรุณากรอกชื่อองค์กร",
     "saveButton": "บันทึก",
     "saved": "บันทึกแล้ว"
+  },
+  "systemSettings": {
+    "title": "ตั้งค่าระบบ",
+    "description": "ค่าเริ่มต้นระดับองค์กร และการจัดการขั้นสูง",
+    "defaultsTitle": "ค่าเริ่มต้นขององค์กร",
+    "defaultLocaleLabel": "ภาษาเริ่มต้นสำหรับสมาชิกใหม่",
+    "defaultLocaleHint": "ใช้ตอนเชิญสมาชิกใหม่ — ลิงก์ยืนยันของสมาชิกจะเปิดในภาษานี้",
+    "localeThai": "ไทย",
+    "localeEnglish": "English",
+    "defaultTimezoneLabel": "เขตเวลาสำหรับตั้งเวลาส่งบรอดแคสต์",
+    "defaultTimezoneHint": "เวลาที่เลือกตอนตั้งเวลาส่งบรอดแคสต์จะตีความตามเขตเวลานี้",
+    "saveButton": "บันทึก",
+    "saved": "บันทึกแล้ว",
+    "cancelButton": "ยกเลิก",
+    "dangerZoneTitle": "โซนอันตราย",
+    "deleteOrgDescription": "ลบองค์กรนี้อย่างถาวร รวมถึงข้อมูลทั้งหมด (บทสนทนา, บรอดแคสต์, ริชเมนู, สมาชิก และอื่นๆ) การกระทำนี้ย้อนกลับไม่ได้",
+    "deleteOrgButton": "ลบองค์กร",
+    "deletingOrg": "กำลังลบ...",
+    "deleteOrgConfirmTitle": "ยืนยันการลบองค์กร",
+    "deleteOrgConfirmDescription": "การกระทำนี้จะลบ \"{name}\" และข้อมูลทั้งหมดอย่างถาวร ย้อนกลับไม่ได้ พิมพ์ชื่อองค์กรเพื่อยืนยัน",
+    "deleteOrgConfirmLabel": "ชื่อองค์กร",
+    "deleteNameMismatch": "ชื่อที่พิมพ์ไม่ตรงกับชื่อองค์กร"
   },
   "reports": {
     "title": "รายงาน",
@@ -297,6 +320,7 @@
     "sortNewestFirst": "ใหม่สุดก่อน",
     "sortOldestFirst": "เก่าสุดก่อน",
     "scheduleToggle": "ตั้งเวลาส่งล่วงหน้า",
+    "scheduleTimezoneHint": "เวลาที่ตั้งจะอ้างอิงเขตเวลาขององค์กร ({timezone})",
     "scheduleButton": "ตั้งเวลาส่ง",
     "scheduleConfirm": "ยืนยันตั้งเวลาส่งข้อความนี้ตามเวลาที่กำหนด?",
     "scheduleSuccess": "ตั้งเวลาส่งเรียบร้อยแล้ว",

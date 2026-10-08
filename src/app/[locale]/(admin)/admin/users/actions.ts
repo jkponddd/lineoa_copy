@@ -18,7 +18,6 @@ export async function addMember(_prevState: AuthFormState, formData: FormData): 
 
   const email = String(formData.get("email") ?? "").trim();
   const role = String(formData.get("role") ?? "agent") as OrgRole;
-  const locale = String(formData.get("locale") ?? "th");
 
   if (!email) {
     return { error: "emailRequired", info: null };
@@ -40,9 +39,13 @@ export async function addMember(_prevState: AuthFormState, formData: FormData): 
     const service = createServiceRoleClient();
     const origin = await getSiteOrigin();
 
+    // The org's own default language, not the inviting admin's current
+    // one — every invite for a given org lands its recipient in the same
+    // language consistently, regardless of which language the admin
+    // happened to be viewing in when they sent it.
     const { error: inviteError } = await service.auth.admin.inviteUserByEmail(email, {
       data: { invited_org_id: membership.organization.id, invited_role: role },
-      redirectTo: `${origin}/${locale}/reset-password`,
+      redirectTo: `${origin}/${membership.organization.defaultLocale}/reset-password`,
     });
 
     if (inviteError) {

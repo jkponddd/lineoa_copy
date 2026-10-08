@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "@/i18n/navigation";
+import { zonedTimeToUtcIso, nowInTimeZoneInputValue } from "@/lib/timezone";
 import { BlockEditor } from "@/components/broadcast/block-editor";
 import { BroadcastPreviewPanel } from "@/components/broadcast/broadcast-preview";
 import { TestSendDialog } from "@/components/broadcast/test-send-dialog";
@@ -45,11 +46,13 @@ const AUDIENCE_OPTIONS: BroadcastAudience[] = ["all", "conversations"];
 export function BroadcastComposer({
   channels,
   organizationId,
+  organizationTimezone,
   contacts,
   initialValues,
 }: {
   channels: Channel[];
   organizationId: string;
+  organizationTimezone: string;
   contacts: BroadcastContact[];
   initialValues: InitialComposerValues | null;
 }) {
@@ -71,9 +74,10 @@ export function BroadcastComposer({
   const [pending, startTransition] = useTransition();
   const [draftPending, startDraftTransition] = useTransition();
   // Lazy-initialized once — reading the clock during render is impure and
-  // React's rules flag it; this only needs to be "roughly now" for the
-  // datetime input's min bound anyway.
-  const [minScheduleValue] = useState(() => new Date(Date.now() + 2 * 60 * 1000).toISOString().slice(0, 16));
+  // React's rules flag it. Expressed in the org's own scheduling timezone
+  // (not the browser's) so the min bound and the picker agree on what
+  // "now" means.
+  const [minScheduleValue] = useState(() => nowInTimeZoneInputValue(organizationTimezone, 2));
 
   const isEditingDraft = Boolean(initialValues?.id);
   const channelById = new Map(channels.map((c) => [c.id, c.display_name]));
@@ -220,7 +224,7 @@ export function BroadcastComposer({
 
       const result = await sendBroadcast({
         ...baseParams(persisted),
-        scheduledAt: scheduleEnabled ? new Date(scheduledAt).toISOString() : null,
+        scheduledAt: scheduleEnabled ? zonedTimeToUtcIso(scheduledAt, organizationTimezone) : null,
         existingDraftId: initialValues?.id ?? null,
       });
 
@@ -358,14 +362,17 @@ export function BroadcastComposer({
               {t("scheduleToggle")}
             </label>
             {scheduleEnabled ? (
-              <Input
-                type="datetime-local"
-                value={scheduledAt}
-                min={minScheduleValue}
-                disabled={busy}
-                onChange={(e) => setScheduledAt(e.target.value)}
-                className="w-full sm:w-72"
-              />
+              <>
+                <Input
+                  type="datetime-local"
+                  value={scheduledAt}
+                  min={minScheduleValue}
+                  disabled={busy}
+                  onChange={(e) => setScheduledAt(e.target.value)}
+                  className="w-full sm:w-72"
+                />
+                <p className="text-xs text-muted-foreground">{t("scheduleTimezoneHint", { timezone: organizationTimezone })}</p>
+              </>
             ) : null}
           </div>
 

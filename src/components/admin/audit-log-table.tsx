@@ -27,6 +27,7 @@ const ACTION_LABEL_KEYS: Record<string, string> = {
   "line_channel.disconnected": "actionLineChannelDisconnected",
   "organization.renamed": "actionOrganizationRenamed",
   "organization.logo_updated": "actionOrganizationLogoUpdated",
+  "organization.settings_updated": "actionOrganizationSettingsUpdated",
 };
 
 const ACTION_TYPES = Object.keys(ACTION_LABEL_KEYS);
