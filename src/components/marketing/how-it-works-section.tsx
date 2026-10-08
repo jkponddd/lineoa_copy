@@ -3,13 +3,19 @@ import { Link2, MessagesSquare, LineChart } from "lucide-react";
 
 const STEP_ICONS = [Link2, MessagesSquare, LineChart] as const;
 
-export function HowItWorksSection() {
-  const t = useTranslations("marketing.howItWorks");
-  const steps = [0, 1, 2].map((i) => ({
+// Exported so the page can build matching HowTo JSON-LD from the exact
+// same steps shown on screen (same reasoning as faq-section's getFaqItems).
+export function getHowItWorksSteps(t: ReturnType<typeof useTranslations>) {
+  return [0, 1, 2].map((i) => ({
     Icon: STEP_ICONS[i],
     title: t(`step${i}Title`),
     description: t(`step${i}Description`),
   }));
+}
+
+export function HowItWorksSection() {
+  const t = useTranslations("marketing.howItWorks");
+  const steps = getHowItWorksSteps(t);
 
   return (
     <section id="how-it-works" className="border-y bg-muted/30">

@@ -1149,3 +1149,24 @@ User asked to add modern/current SEO practices. The root layout previously expor
 - No Content-Security-Policy still (unchanged from Step 33 — needs the real deployed Supabase project URL to scope correctly, not a placeholder).
 - `NEXT_PUBLIC_SITE_URL` must be set in the real production environment — everything here falls back to `http://localhost:3000` otherwise, which would produce wrong canonical/OG/sitemap URLs in production.
 - No per-page OG images beyond the homepage (login/signup/etc. inherit the root layout's default Twitter/OG behavior with no dedicated image) — a reasonable scope cut since those pages aren't meant to be shared/indexed as richly as the homepage.
+
+---
+
+## 2026-10-08 (continued) — Phase 1, Step 35: AEO/GEO — richer structured data + llms-full.txt
+
+User asked whether Step 34 covered AEO (Answer Engine Optimization) and GEO (Generative Engine Optimization) specifically — it partially did (FAQPage schema, llms.txt), but not the fuller set these terms usually mean: more structured data types answer/generative engines can lift directly, and clean machine-readable content for crawlers that never render the page's JS at all.
+
+**What was built**
+
+- `how-it-works-section.tsx` gained an exported `getHowItWorksSteps(t)`, mirroring `faq-section.tsx`'s existing `getFaqItems(t)` pattern, so the homepage's JSON-LD can be built from the exact same step content the component renders.
+- Homepage JSON-LD `@graph` extended with `SoftwareApplication` (name/category/description — deliberately no `offers`/price, since the Pricing section's numbers are explicitly illustrative, not real transactable pricing, and embedding them in a schema search engines treat as a factual claim would misrepresent that) and `HowTo` (the 3 "how it works" steps as `HowToStep` entries) — alongside the `Organization` + `FAQPage` schema from Step 34.
+- `llms.txt` rewritten to actually follow the documented llmstxt.org spec shape (H1, one-line blockquote summary, markdown link lists under H2 sections) rather than the ad-hoc prose version from Step 34 — now links to the new `llms-full.txt`.
+- New `src/app/llms-full.txt/route.ts` — the GEO half of the pair: the homepage's full content (features, how-it-works, pricing, FAQ) as plain markdown, for both locales in one file, built live from the same `marketing` translation keys the page itself renders (not a hand-copied duplicate that could drift).
+- Checked heading hierarchy on the homepage (single `h1`, `h2` per section, `h3` for sub-items) — already correct from Step 32's build, no changes needed.
+
+**Verified against a live dev server**: `curl`-ed `/llms.txt` and confirmed it matches the spec shape and links resolve; `curl`-ed `/llms-full.txt` and confirmed both the Thai and English sections render with the real feature/pricing/FAQ content, not placeholders; fetched the homepage and confirmed all four JSON-LD types (`Organization`, `SoftwareApplication`, `HowTo` with its 3 `HowToStep`s, `FAQPage` with all 5 `Question`/`Answer` pairs) are present in the rendered `@graph`. `tsc --noEmit`, `eslint`, and `next build` all clean throughout.
+
+**Open items / not built yet**
+
+- No `BreadcrumbList` schema — not very meaningful yet with only one real public page (the homepage); worth adding once /pricing or /features split into their own routes.
+- Same `NEXT_PUBLIC_SITE_URL` caveat as Step 34 — llms.txt/llms-full.txt's links fall back to `http://localhost:3000` until it's set in production.

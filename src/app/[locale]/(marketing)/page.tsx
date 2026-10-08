@@ -9,6 +9,7 @@ import { FeaturesSection } from "@/components/marketing/features-section";
 import { HowItWorksSection } from "@/components/marketing/how-it-works-section";
 import { PricingSection } from "@/components/marketing/pricing-section";
 import { FaqSection, getFaqItems } from "@/components/marketing/faq-section";
+import { getHowItWorksSteps } from "@/components/marketing/how-it-works-section";
 import { buildAlternates } from "@/lib/metadata-alternates";
 import { SITE_URL } from "@/lib/site-url";
 
@@ -26,10 +27,18 @@ export default function HomePage() {
   const t = useTranslations("marketing");
   const faqT = useTranslations("marketing.faq");
   const faqItems = getFaqItems(faqT);
+  const howItWorksT = useTranslations("marketing.howItWorks");
+  const steps = getHowItWorksSteps(howItWorksT);
 
-  // FAQPage + Organization structured data, built from the exact same
-  // content rendered on the page (see getFaqItems) — search engines can
-  // show these questions directly as rich results.
+  // Organization + SoftwareApplication + HowTo + FAQPage structured data,
+  // built from the exact same content rendered on the page (see
+  // getFaqItems/getHowItWorksSteps) — this is what answer/generative
+  // engines (AI Overviews, Perplexity, etc.) lift directly into a result
+  // instead of a plain blue link, and it's exactly what llms.txt gives a
+  // crawler that never renders this page's HTML at all. No `offers`/price
+  // on SoftwareApplication — the Pricing section's numbers are explicitly
+  // illustrative, not real transactable pricing, so they don't belong in
+  // a schema search engines treat as a factual claim.
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
@@ -37,6 +46,22 @@ export default function HomePage() {
         "@type": "Organization",
         name: "LINE OA Platform",
         url: SITE_URL,
+      },
+      {
+        "@type": "SoftwareApplication",
+        name: "LINE OA Platform",
+        applicationCategory: "BusinessApplication",
+        operatingSystem: "Web",
+        description: t("description"),
+      },
+      {
+        "@type": "HowTo",
+        name: howItWorksT("title"),
+        step: steps.map((step) => ({
+          "@type": "HowToStep",
+          name: step.title,
+          text: step.description,
+        })),
       },
       {
         "@type": "FAQPage",
